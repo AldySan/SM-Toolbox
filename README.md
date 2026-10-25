@@ -12,6 +12,7 @@ A desktop companion for [ShadowMountPlus](https://github.com/drakmor/ShadowMount
 
 - **Build images** from decrypted game dumps in the three formats ShadowMountPlus understands: UFS2 (`.ffpkg`), exFAT (`.exfat`), and compressed PFS containers (`.ffpfsc`)
 - **Queue builds** — enqueue several images and they build one after another; the next starts the moment the current one finishes
+- **Stay current** — on launch the toolbox quietly checks GitHub for a newer release (toggleable in Settings, with a manual check button) and links you to it
 - **Verify images** before they reach the console: filesystem sniffing from magic bytes (exFAT boot sector, UFS superblock), extension cross-checks, and inspection through MkPFS / UFS2Tool
 - **Send payloads** — download `shadowmountplus.elf` on demand and stream it to a payload listener on the console (TCP 9021)
 - **Guide & troubleshoot** — the installation, usage and troubleshooting knowledge from the ShadowMountPlus README, searchable inside the app
@@ -69,7 +70,7 @@ Electron app with a strict main/renderer split (`contextIsolation` on, `nodeInte
 ```
 src/
 ├── main/               privileged process — owns the filesystem and the tools
-│   ├── ipc.ts          IPC surface: settings, dialogs, env, queue, verify, send
+│   ├── ipc.ts          IPC surface: settings, dialogs, env, queue, verify, send, updates
 │   └── lib/
 │       ├── recipes.ts  pure step builders for the three image formats
 │       ├── runner.ts   sequential step runner: streaming, cancellation, elevation
@@ -78,6 +79,8 @@ src/
 │       ├── verifier.ts folder stats and magic-byte image detection
 │       ├── toolmanager.ts  GitHub release downloads for UFS2Tool / MkPFS
 │       ├── payload.ts  payload download (cached, atomically) and TCP transfer
+│       ├── updater.ts  release check against the GitHub API
+│       ├── version.ts  semantic-version comparison for the update check
 │       └── settings.ts persisted app settings
 ├── preload/            the smp API bridge exposed to the renderer
 ├── renderer/           React app — views, queue panel, terminal dock
@@ -101,7 +104,7 @@ Privilege handling differs per platform: on Linux, privileged steps go through `
 
 - Conventional commits; PRs target `dev` — `main` tracks releases
 - CI (`.github/workflows/build.yml`) builds and smoke-tests on `ubuntu-latest` and `windows-latest` for every push and PR, and attaches Windows/Linux distributables to releases tagged `v*`
-- Tests run with `npm test` (vitest): recipe builders, image detection, and the queue state machine — no network, no Electron required
+- Tests run with `npm test` (vitest): recipe builders, image detection, the queue state machine, and the version comparison behind the update check — no network, no Electron required
 
 ## Contributing
 
