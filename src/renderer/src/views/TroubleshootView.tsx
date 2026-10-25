@@ -104,7 +104,7 @@ export function TroubleshootView() {
                 <span className="trouble-title">{section.title}</span>
                 <span className="trouble-chevron">{expanded ? '−' : '+'}</span>
               </button>
-              {expanded && (
+              <div className={`trouble-body-wrap${expanded ? ' open' : ''}`}>
                 <div className="trouble-body">
                   <p className="dim">{section.symptoms}</p>
                   <ol className="steps plain-list numbered">
@@ -113,7 +113,7 @@ export function TroubleshootView() {
                     ))}
                   </ol>
                 </div>
-              )}
+              </div>
             </div>
           );
         })}
