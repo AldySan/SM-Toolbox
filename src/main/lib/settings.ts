@@ -11,6 +11,7 @@ const DEFAULTS: AppSettings = {
   toolCache: { mkpfs: '', ufs2tool: '' },
   privilege: 'auto',
   defaultOutDir: '',
+  autoCheckUpdates: true,
   ps5: { host: '', port: 9021 },
   recentHosts: [],
 };

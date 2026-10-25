@@ -12,6 +12,7 @@ import { runJob, RunningJob } from './lib/runner';
 import { detectImage, statFolder } from './lib/verifier';
 import { downloadTool, listAssets } from './lib/toolmanager';
 import { ensurePayload, sendPayload } from './lib/payload';
+import { checkForUpdates } from './lib/updater';
 import { JobQueue } from './lib/queue';
 import type { QueueSnapshot } from '../shared/types';
 
@@ -325,4 +326,10 @@ export function registerIpc(): void {
     active.cancel();
     return true;
   });
+
+  /* ---------- updates ---------- */
+
+  // Never throws — network failures come back as an `error` status so they
+  // can be surfaced only for manual checks.
+  ipcMain.handle(IPC.UpdatesCheck, () => checkForUpdates());
 }
