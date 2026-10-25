@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { useEffect, useState } from 'react';
-import type { AppInfo, AppSettings, EnvReport, ThemeMode, ToolEvent } from '../../../shared/types';
+import type { AppInfo, AppSettings, EnvReport, ThemeMode, ToolEvent, UpdateCheckResult } from '../../../shared/types';
 import { smp } from '../lib/api';
 import { Segmented } from '../components/Segmented';
 import { PathField } from '../components/PathField';
@@ -18,13 +18,16 @@ export function SettingsView(props: {
   settings: AppSettings | null;
   appInfo: AppInfo | null;
   env: EnvReport | null;
+  updateInfo: UpdateCheckResult | null;
   onChange: (patch: Partial<AppSettings>) => void;
+  onCheckUpdates: () => Promise<UpdateCheckResult>;
   onRefreshEnv: () => void;
 }) {
-  const { settings, appInfo, env } = props;
+  const { settings, appInfo, env, updateInfo } = props;
   const [progress, setProgress] = useState<Partial<Record<ToolId, ToolProgress>>>({});
   const [busy, setBusy] = useState<Partial<Record<ToolId, boolean>>>({});
   const [toolError, setToolError] = useState<Partial<Record<ToolId, string>>>({});
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     const unsubscribe = smp.onToolEvent((event: ToolEvent) => {
@@ -83,6 +86,14 @@ export function SettingsView(props: {
       }
       setBusy((prev) => ({ ...prev, [tool]: false }));
     });
+  };
+
+  const runUpdateCheck = () => {
+    setChecking(true);
+    void props
+      .onCheckUpdates()
+      .catch(() => undefined)
+      .finally(() => setChecking(false));
   };
 
   return (
@@ -205,19 +216,70 @@ export function SettingsView(props: {
       </div>
 
       <div className="card">
+        <h2>Updates</h2>
+        <div className="field">
+          <label>Check automatically</label>
+          <div className="switch-row">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={settings.autoCheckUpdates}
+              className={`switch${settings.autoCheckUpdates ? ' on' : ''}`}
+              onClick={() => props.onChange({ autoCheckUpdates: !settings.autoCheckUpdates })}
+            >
+              <span className="switch-knob" />
+            </button>
+            <span className="field-hint">
+              Checks GitHub shortly after launch; a found update is pointed out in the sidebar.
+            </span>
+          </div>
+        </div>
+        <div className="field">
+          <label>Manual check</label>
+          <div className="update-check-row">
+            <button type="button" className="btn" disabled={checking} onClick={runUpdateCheck}>
+              {checking ? 'Checking…' : 'Check for updates'}
+            </button>
+            {!checking && updateInfo && <UpdateStatus result={updateInfo} />}
+          </div>
+          <div className="field-hint">
+            Releases are published on GitHub — the app points you at them but never installs anything on its own.
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
         <h2>About</h2>
         <p>
           SM+ Toolbox {appInfo ? `v${appInfo.version}` : ''} — part of the ShadowMountPlus project, licensed
           GPL-3.0-or-later.
         </p>
         <p className="links">
-          <a href="https://github.com/drakmor/ShadowMountPlus">Repository</a>
+          <a href="https://github.com/AldySan/SM-Toolbox">Repository</a>
           <span aria-hidden="true">·</span>
-          <a href="https://github.com/drakmor/ShadowMountPlus/blob/1.7/client">Client source</a>
+          <a href="https://github.com/drakmor/ShadowMountPlus">ShadowMountPlus</a>
         </p>
       </div>
     </div>
   );
+}
+
+function UpdateStatus(props: { result: UpdateCheckResult }) {
+  const { result } = props;
+  if (result.status === 'available') {
+    return (
+      <span className="update-status available">
+        Update available — <a href={result.releaseUrl}>{result.latestVersion}</a>
+      </span>
+    );
+  }
+  if (result.status === 'up-to-date') {
+    return <span className="update-status">Up to date — v{result.currentVersion}</span>;
+  }
+  if (result.status === 'none') {
+    return <span className="update-status">No releases have been published yet</span>;
+  }
+  return <span className="error-text">{result.message ?? 'The update check failed'}</span>;
 }
 
 function ToolRow(props: {
