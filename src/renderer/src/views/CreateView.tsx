@@ -9,6 +9,7 @@ import type {
   InnerFormat,
   InodeDensity,
   JobStepPreview,
+  QueueSnapshot,
 } from '../../../shared/types';
 import { smp } from '../lib/api';
 import { Callout } from '../components/Callout';
@@ -44,7 +45,8 @@ function formatBytes(bytes: number): string {
 export function CreateView(props: {
   settings: AppSettings | null;
   env: EnvReport | null;
-  onStart: (spec: BuildSpec) => Promise<void>;
+  queue: QueueSnapshot;
+  onEnqueue: (spec: BuildSpec) => Promise<void>;
 }) {
   const [format, setFormat] = useState<ImageFormat>('ufs2');
   const [sourceDir, setSourceDir] = useState('');
@@ -140,7 +142,7 @@ export function CreateView(props: {
     if (!spec) return;
     setError(null);
     try {
-      await props.onStart(spec);
+      await props.onEnqueue(spec);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
     }
@@ -276,10 +278,17 @@ export function CreateView(props: {
 
         <div className="run-row">
           <button type="button" className="btn primary" disabled={!spec || blockers.length > 0} onClick={() => void run()}>
-            Build image
+            Add to queue
           </button>
           {outputFile && <span className="field-hint mono">{outputFile}</span>}
         </div>
+        {props.queue.items.length > 0 && (
+          <div className="field-hint">
+            {props.queue.items.some((item) => item.status === 'running')
+              ? 'A build is running — this image starts right after it.'
+              : `The queue holds ${props.queue.items.length} image${props.queue.items.length === 1 ? '' : 's'}; adding another keeps building one after another.`}
+          </div>
+        )}
 
         {blockers.map((blocker) => (
           <Callout key={blocker} tone="warn">

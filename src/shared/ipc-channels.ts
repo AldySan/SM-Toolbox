@@ -16,8 +16,11 @@ export const IPC = {
   VerifyFile: 'verify:file',
   VerifyInspect: 'verify:inspect',
   JobPreview: 'job:preview',
-  JobRun: 'job:run',
   JobCancel: 'job:cancel',
+  QueueList: 'queue:list',
+  QueueAdd: 'queue:add',
+  QueueRemove: 'queue:remove',
+  QueueClear: 'queue:clear',
   ToolDownload: 'tools:download',
   ToolListAssets: 'tools:list-assets',
   PayloadDownload: 'tools:download-payload',
@@ -26,4 +29,5 @@ export const IPC = {
   EventJob: 'job:event',
   EventTool: 'tool:event',
   EventSend: 'send:event',
+  EventQueue: 'queue:event',
 } as const;

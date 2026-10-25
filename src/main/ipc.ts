@@ -12,6 +12,8 @@ import { runJob, RunningJob } from './lib/runner';
 import { detectImage, statFolder } from './lib/verifier';
 import { downloadTool, listAssets } from './lib/toolmanager';
 import { ensurePayload, sendPayload } from './lib/payload';
+import { JobQueue } from './lib/queue';
+import type { QueueSnapshot } from '../shared/types';
 
 const IS_WINDOWS = process.platform === 'win32';
 
@@ -66,6 +68,37 @@ function stepContext(spec: BuildSpec, sourceFileCount: number) {
     ufs2tool: resolved.ufs2tool,
     sourceFileCount,
   };
+}
+
+/** Start one build job and stream its events to a window. */
+async function launchJob(
+  sender: BrowserWindow | null,
+  spec: BuildSpec,
+): Promise<{ jobId: string; done: ReturnType<typeof runJob>['done'] }> {
+  const sourceFileCount = (await statFolder(spec.sourceDir))?.fileCount ?? 0;
+  const steps = buildSteps(spec, stepContext(spec, sourceFileCount));
+
+  const settings = loadSettings();
+  const jobId = `job-${++jobCounter}`;
+  const send = (payload: JobEvent) => {
+    if (!sender || sender.isDestroyed()) return;
+    sender.webContents.send(IPC.EventJob, payload);
+  };
+
+  send({ jobId, type: 'start', title: jobTitle(spec), steps: steps.length });
+
+  const running = runJob(jobId, steps, {
+    privilege: settings.privilege,
+    pkexecAvailable: process.platform === 'linux' && Boolean(findExecutable('pkexec')),
+    runningAsRoot: typeof process.getuid === 'function' && process.getuid() === 0,
+    onStep: (index, _total, step) => {
+      send({ jobId, type: 'step', index, description: step.description, command: step.command });
+    },
+    onData: (chunk) => send({ jobId, type: 'data', chunk }),
+  });
+  jobs.set(jobId, running);
+  const done = running.done.finally(() => jobs.delete(jobId));
+  return { jobId, done };
 }
 
 export function registerIpc(): void {
@@ -124,36 +157,39 @@ export function registerIpc(): void {
     return { title: jobTitle(spec), steps: stepsToPreview(steps) };
   });
 
-  ipcMain.handle(IPC.JobRun, async (event, raw) => {
-    const spec = prepareSpec(raw);
-    const sourceFileCount = (await statFolder(spec.sourceDir))?.fileCount ?? 0;
-    const steps = buildSteps(spec, stepContext(spec, sourceFileCount));
+  /* ---------- build queue ---------- */
 
-    const settings = loadSettings();
-    const jobId = `job-${++jobCounter}`;
-    const sender = BrowserWindow.fromWebContents(event.sender);
-    const send = (payload: JobEvent) => {
-      if (!sender || sender.isDestroyed()) return;
-      sender.webContents.send(IPC.EventJob, payload);
-    };
+  // The window that most recently enqueued an item receives the job stream;
+  // queue snapshots go to every window.
+  let queueWindow: BrowserWindow | null = null;
 
-    send({ jobId, type: 'start', title: jobTitle(spec), steps: steps.length });
+  const broadcastQueue = (snapshot: QueueSnapshot) => {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) win.webContents.send(IPC.EventQueue, snapshot);
+    }
+  };
 
-    const running = runJob(jobId, steps, {
-      privilege: settings.privilege,
-      pkexecAvailable: process.platform === 'linux' && Boolean(findExecutable('pkexec')),
-      runningAsRoot: typeof process.getuid === 'function' && process.getuid() === 0,
-      onStep: (index, _total, step) => {
-        send({ jobId, type: 'step', index, description: step.description, command: step.command });
-      },
-      onData: (chunk) => send({ jobId, type: 'data', chunk }),
-    });
-    jobs.set(jobId, running);
-    const result = await running.done;
-    jobs.delete(jobId);
-    send({ jobId, type: 'exit', code: result.code, ok: result.ok, note: result.note, cancelled: result.cancelled });
-    return { jobId };
+  const queue = new JobQueue({
+    launcher: {
+      // Specs are validated again at launch: the source or a tool may have
+      // changed between enqueueing and the item's turn.
+      launch: (spec) => launchJob(queueWindow, prepareSpec(spec)),
+    },
+    onChange: broadcastQueue,
   });
+
+  ipcMain.handle(IPC.QueueList, () => queue.snapshot());
+
+  ipcMain.handle(IPC.QueueAdd, (event, raw) => {
+    queueWindow = BrowserWindow.fromWebContents(event.sender) ?? null;
+    const spec = prepareSpec(raw); // throws with an actionable message on bad input
+    const item = queue.add(spec, jobTitle(spec));
+    return { itemId: item.id };
+  });
+
+  ipcMain.handle(IPC.QueueRemove, (_event, itemId) => queue.remove(asString(itemId)));
+
+  ipcMain.handle(IPC.QueueClear, () => queue.clearPending());
 
   ipcMain.handle(IPC.JobCancel, (_event, jobId) => {
     const running = jobs.get(asString(jobId));

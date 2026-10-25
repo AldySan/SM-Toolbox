@@ -106,8 +106,7 @@ export interface InspectResult {
   output: string;
 }
 
-export interface BuildSpec {
-  format: ImageFormat;
+export interface BuildSpec {  format: ImageFormat;
   sourceDir: string;
   outputFile: string;
   /** For ffpfsc: the nested image format packed inside the container. */
@@ -132,6 +131,28 @@ export type JobEvent =
   | { jobId: string; type: 'data'; chunk: string }
   | { jobId: string; type: 'exit'; code: number; ok: boolean; note?: string; cancelled?: boolean }
   | { jobId: string; type: 'cancelled' };
+
+export type QueueItemStatus = 'pending' | 'running' | 'done' | 'failed' | 'cancelled';
+
+export interface QueueItem {
+  id: string;
+  status: QueueItemStatus;
+  addedAt: number;
+  endedAt?: number;
+  title: string;
+  /** Output file name shown in the queue panel. */
+  outputName: string;
+  format: ImageFormat;
+  spec: BuildSpec;
+  jobId?: string;
+  note?: string;
+}
+
+export interface QueueSnapshot {
+  items: QueueItem[];
+  /** Id of the item currently running, if any. */
+  currentId: string | null;
+}
 
 export type ToolEvent =
   | { tool: string; type: 'status'; text: string }
@@ -183,8 +204,13 @@ export interface SmpApi {
   };
   jobs: {
     preview(spec: BuildSpec): Promise<{ title: string; steps: JobStepPreview[] }>;
-    run(spec: BuildSpec): Promise<{ jobId: string }>;
     cancel(jobId: string): Promise<boolean>;
+  };
+  queue: {
+    list(): Promise<QueueSnapshot>;
+    add(spec: BuildSpec): Promise<{ itemId: string }>;
+    remove(itemId: string): Promise<boolean>;
+    clear(): Promise<number>;
   };
   tools: {
     download(tool: 'mkpfs' | 'ufs2tool', assetName?: string): Promise<{ ok: boolean; path?: string; error?: string }>;
@@ -198,4 +224,5 @@ export interface SmpApi {
   onJobEvent(callback: (event: JobEvent) => void): () => void;
   onToolEvent(callback: (event: ToolEvent) => void): () => void;
   onSendEvent(callback: (event: SendEvent) => void): () => void;
+  onQueueEvent(callback: (snapshot: QueueSnapshot) => void): () => void;
 }
