@@ -1,117 +1,195 @@
 # SM+ Toolbox
 
-[![build](https://github.com/AldySan/SM-Toolbox/actions/workflows/build.yml/badge.svg?branch=dev)](https://github.com/AldySan/SM-Toolbox/actions/workflows/build.yml)
+[![Build](https://github.com/AldySan/SM-Toolbox/actions/workflows/build.yml/badge.svg?branch=dev)](https://github.com/AldySan/SM-Toolbox/actions/workflows/build.yml)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux-lightgrey.svg)](#installation)
 
-A desktop companion for [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus), the PS5 homebrew enabler that mounts game images from external storage. The toolbox turns the repository's documented image-building workflow — normally a terminal, an elevated PowerShell, and a hex editor for the cases that go wrong — into one cross-platform app.
+SM+ Toolbox is a desktop companion for [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus), a PS5 homebrew project that lets you mount game images from external storage.
+
+Building those images usually involves running commands in a terminal, handling elevated permissions, and occasionally reaching for a hex editor when something doesn't look right. SM+ Toolbox brings that workflow into a single desktop app, with support for both Windows and Linux.
 
 ![Home view](docs/screenshots/home.png)
 
-## What it does
+## Features
 
-- **Build images** from decrypted game dumps in the three formats ShadowMountPlus understands: UFS2 (`.ffpkg`), exFAT (`.exfat`), and compressed PFS containers (`.ffpfsc`)
-- **Queue builds** — enqueue several images and they build one after another; the next starts the moment the current one finishes
-- **Stay current** — on launch the toolbox quietly checks GitHub for a newer release (toggleable in Settings, with a manual check button) and links you to it
-- **Verify images** before they reach the console: filesystem sniffing from magic bytes (exFAT boot sector, UFS superblock), extension cross-checks, and inspection through MkPFS / UFS2Tool
-- **Send payloads** — download `shadowmountplus.elf` on demand and stream it to a payload listener on the console (TCP 9021)
-- **Guide & troubleshoot** — the installation, usage and troubleshooting knowledge from the ShadowMountPlus README, searchable inside the app
+### Build and manage images
+
+SM+ Toolbox supports all three image formats used by ShadowMountPlus:
+
+- **UFS2 (`.ffpkg`)** — build UFS2 filesystem images from decrypted game dumps.
+- **exFAT (`.exfat`)** — create exFAT images using the documented filesystem profile.
+- **Compressed PFS (`.ffpfsc`)** — package game files into compressed PFS containers using MkPFS.
+
+Need to prepare more than one image? Add them to the build queue and let the app process them in order. Each build starts automatically when the previous one finishes.
+
+### Verify images before using them
+
+The verification view checks an image's filesystem signatures, file extension, and other relevant details. It can also inspect images using UFS2Tool and MkPFS to help catch problems before you transfer them to your console.
 
 ![Verify view](docs/screenshots/verify.png)
 
-Every command the app runs is previewed before it executes. Nothing is hidden: the terminal panel shows the exact tools, arguments and output for each step.
+### Send payloads to your console
+
+Download `shadowmountplus.elf` from within the app and send it to a payload listener on your console over TCP port `9021`. The downloaded file is cached locally for subsequent use.
+
+### Keep the tools up to date
+
+On startup, the app can check GitHub for a newer SM+ Toolbox release and direct you to it. Automatic update checks can be disabled in Settings, and you can always check manually.
+
+The built-in tool manager also handles downloading UFS2Tool and MkPFS, so you don't have to hunt down those dependencies yourself.
+
+### Built-in documentation
+
+Installation instructions, usage notes, and troubleshooting information from the ShadowMountPlus README are available inside the app, with search to help you find what you need.
+
+One thing worth noting: **commands aren't hidden behind the UI.** Before execution, the app previews the commands it will run, and the terminal panel shows the tools, arguments, and output as each step progresses.
 
 ![Create view with command preview](docs/screenshots/create.png)
 
 ## Requirements
 
-| | Windows | Linux |
+The requirements depend on which image format you want to build.
+
+| Requirement | Windows | Linux |
 |---|---|---|
-| UFS2 images & verification | UFS2Tool — downloaded by the tool manager | UFS2Tool — downloaded by the tool manager |
-| Compressed PFS images | Python 3 (runs the MkPFS wheel) | Python 3 (runs the MkPFS wheel) |
-| exFAT images | [OSFMount](https://www.osforensics.com/tools/mount-disk-images.html) + administrator rights (UAC) | `exfatprogs`, `exfat-fuse`, `fuse3`, `rsync` + `pkexec`/polkit |
-| Payload sending | — | — |
+| UFS2 images and verification | UFS2Tool (managed by the app) | UFS2Tool (managed by the app) |
+| Compressed PFS images | Python 3 for running the MkPFS wheel | Python 3 for running the MkPFS wheel |
+| exFAT images | [OSFMount](https://www.osforensics.com/tools/mount-disk-images.html) and administrator privileges (UAC) | `exfatprogs`, `exfat-fuse`, `fuse3`, `rsync`, and `pkexec`/polkit |
+| Payload sending | No additional platform-specific dependency | No additional platform-specific dependency |
 
-Two more things are needed regardless of platform: a local [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) checkout (the exFAT builders ship with the repository and always run from your copy) and game sources with `eboot.bin` and `sce_sys/param.json` at the folder root — the app checks and refuses to build otherwise.
+Regardless of your platform, you'll also need:
 
-The built-in tool manager fetches UFS2Tool and MkPFS from their official releases ([SvenGDK/UFS2Tool](https://github.com/SvenGDK/UFS2Tool), [PSBrew/MkPFS](https://github.com/PSBrew/MkPFS)) with no account or credentials involved.
+- A local checkout of [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus). The exFAT builders are included in that repository and run from your local copy.
+- A decrypted game dump with `eboot.bin` and `sce_sys/param.json` in the root directory.
+
+The app checks for the required game files before starting a build, so an incomplete source directory won't be processed.
+
+UFS2Tool and MkPFS are downloaded from their respective upstream releases:
+
+- [SvenGDK/UFS2Tool](https://github.com/SvenGDK/UFS2Tool)
+- [PSBrew/MkPFS](https://github.com/PSBrew/MkPFS)
+
+No account or credentials are required to download these tools.
 
 ## Installation
 
-Grab a build from [releases](https://github.com/AldySan/SM-Toolbox/releases):
+Head over to the [Releases page](https://github.com/AldySan/SM-Toolbox/releases) and download the package for your platform.
 
-- **Windows** — `SM-Toolbox-Setup.exe` (installer) or the portable `.zip` (extract and run `sm-toolbox.exe`)
-- **Linux** — `.AppImage`, `.deb`, or `.rpm`
+**Windows**
+- `SM-Toolbox-Setup.exe` — install the application normally.
+- Portable `.zip` — extract the archive and run `sm-toolbox.exe`.
 
-Or build from source below.
+**Linux**
+- `.AppImage`
+- `.deb`
+- `.rpm`
+
+If you'd rather build the application yourself, follow the instructions below.
 
 ## Building from source
 
-Node.js 22 or newer:
+You'll need Node.js 22 or newer.
 
 ```sh
 git clone https://github.com/AldySan/SM-Toolbox.git
 cd SM-Toolbox
 npm install
 
-npm start                      # run in development
-npm test                       # unit tests (vitest)
-npm run typecheck              # strict TypeScript check
-npx electron-forge package     # packaged app in out/
-npx electron-forge make        # distributables (installer, zip, deb, rpm, AppImage)
+# Start the app in development mode
+npm start
+
+# Run unit tests
+npm test
+
+# Check TypeScript types
+npm run typecheck
+
+# Package the app
+npx electron-forge package
+
+# Build distributable packages
+npx electron-forge make
 ```
 
-A headless smoke test is built in: `./out/<platform>/sm-toolbox --smoke-test` boots the app, opens the window, and exits — the same check CI runs on every commit.
+Packaged output is written to `out/`.
 
-## Architecture
+There's also a headless smoke test for checking that the packaged app can start, open its window, and exit cleanly:
 
-Electron app with a strict main/renderer split (`contextIsolation` on, `nodeIntegration` off, ASAR integrity enforced):
-
+```sh
+./out/<platform>/sm-toolbox --smoke-test
 ```
+
+This is the same basic check used by CI on every commit.
+
+## How it's built
+
+SM+ Toolbox uses Electron, with a separate main process and renderer process. The main process handles filesystem access, external tools, build execution, and other privileged operations. The renderer is a React application that communicates with it through a limited preload API.
+
+The application runs with `contextIsolation` enabled, `nodeIntegration` disabled, and ASAR integrity checks enforced.
+
+Here's the rough layout of the source tree:
+
+```text
 src/
-├── main/               privileged process — owns the filesystem and the tools
-│   ├── ipc.ts          IPC surface: settings, dialogs, env, queue, verify, send, updates
+├── main/                   # Privileged process
+│   ├── ipc.ts              # IPC handlers for app features
 │   └── lib/
-│       ├── recipes.ts  pure step builders for the three image formats
-│       ├── runner.ts   sequential step runner: streaming, cancellation, elevation
-│       ├── queue.ts    the build queue state machine
-│       ├── env.ts      toolchain detection and resolution
-│       ├── verifier.ts folder stats and magic-byte image detection
-│       ├── toolmanager.ts  GitHub release downloads for UFS2Tool / MkPFS
-│       ├── payload.ts  payload download (cached, atomically) and TCP transfer
-│       ├── updater.ts  release check against the GitHub API
-│       ├── version.ts  semantic-version comparison for the update check
-│       └── settings.ts persisted app settings
-├── preload/            the smp API bridge exposed to the renderer
-├── renderer/           React app — views, queue panel, terminal dock
-└── shared/             types and IPC channel names shared by all three
+│       ├── recipes.ts      # Image build steps for each format
+│       ├── runner.ts       # Step execution, output, cancellation, elevation
+│       ├── queue.ts        # Build queue state machine
+│       ├── env.ts          # Toolchain detection and resolution
+│       ├── verifier.ts     # Folder stats and image signature detection
+│       ├── toolmanager.ts  # UFS2Tool and MkPFS downloads
+│       ├── payload.ts      # Payload download and TCP transfer
+│       ├── updater.ts      # GitHub release checks
+│       ├── version.ts      # Semantic version comparison
+│       └── settings.ts     # Persistent app settings
+├── preload/                # Restricted API exposed to the renderer
+├── renderer/               # React UI, queue panel, terminal dock
+└── shared/                 # Shared types and IPC channel names
 ```
 
-The image formats are built exactly as the ShadowMountPlus README documents them — same tool invocations, same fixed profiles (UFS2 `newfs -O 2 -b 65536 -f 65536 -m 0 -S 4096` with tiered inode density; exFAT with a fixed 64 KiB cluster; two-step `mkpfs pack folder` → `pack file` for containers). The builders are pure functions covered by unit tests; the runner adds streaming output, cancellation and privilege handling on top.
+The image builders follow the procedures documented by ShadowMountPlus rather than introducing their own filesystem layouts. For example, the UFS2 builder uses the documented `newfs` profile (`-O 2 -b 65536 -f 65536 -m 0 -S 4096`) with tiered inode density, while the exFAT builder uses a fixed 64 KiB cluster size. Compressed PFS images are created in two steps: `mkpfs pack folder`, followed by `pack file`.
 
-Privilege handling differs per platform: on Linux, privileged steps go through `pkexec`/polkit when available (or print the exact `sudo` command to run yourself); on Windows the exFAT builder is raised through a UAC prompt with its output tailed back into the terminal panel.
+The build recipes are pure functions with unit tests. A separate runner takes care of executing each step, streaming its output, handling cancellation, and requesting elevated privileges when necessary.
+
+Privilege handling is platform-specific:
+
+- **Linux:** privileged steps use `pkexec`/polkit when available. Otherwise, the app prints the corresponding `sudo` command so you can run it yourself.
+- **Windows:** the exFAT builder requests elevation through UAC, with its output streamed back into the terminal panel.
 
 ## Verification and safety
 
 ![Send payload view](docs/screenshots/send.png)
 
-- Image detection reads the first 68 KiB and checks the actual filesystem signatures — an `.ffpkg` that is really an exFAT image is caught before it reaches the console
-- exFAT images are validated against the documented profile: 64 KiB clusters and 64 KiB-aligned size
-- The payload download is atomic (`.part` + rename) and validated against the ELF magic, so a truncated download can never be sent to the console
-- Tool overrides in Settings are probed before use; stale paths fail with a clear message instead of a confusing spawn error
+A few checks are built into the workflow to catch common mistakes before they become harder to diagnose:
 
-## Development notes
+- **Filesystem detection:** reads the first 68 KiB of an image and checks its filesystem signatures. For example, a file named `.ffpkg` that actually contains an exFAT filesystem can be flagged.
+- **exFAT profile validation:** checks for the expected 64 KiB cluster size and a total image size aligned to 64 KiB.
+- **Payload integrity:** downloads are written to a temporary `.part` file before being renamed into place. The ELF magic is checked before the payload can be sent.
+- **Tool path validation:** custom tool paths configured in Settings are checked before use, so invalid paths produce a clearer error instead of an opaque process-spawning failure.
 
-- Conventional commits; PRs target `dev` — `main` tracks releases
-- CI (`.github/workflows/build.yml`) builds and smoke-tests on `ubuntu-latest` and `windows-latest` for every push and PR, and attaches Windows/Linux distributables to releases tagged `v*`
-- Tests run with `npm test` (vitest): recipe builders, image detection, the queue state machine, and the version comparison behind the update check — no network, no Electron required
+These checks don't replace testing on your console, but they help catch several common configuration and file-format issues early.
+
+## Development
+
+A few conventions used in this repository:
+
+- **Commit messages:** follow Conventional Commits.
+- **Pull requests:** target `dev`; `main` tracks releases.
+- **CI:** `.github/workflows/build.yml` builds and smoke-tests the app on `ubuntu-latest` and `windows-latest` for pushes and pull requests. Tagged releases matching `v*` also receive Windows and Linux distributables.
+- **Tests:** run with Vitest via `npm test`. The suite covers build recipes, image detection, the queue state machine, and semantic-version comparison. These tests don't require network access or an Electron runtime.
 
 ## Contributing
 
-Issues and PRs are welcome. Keep changes focused; new tool integration should follow the existing `ToolInvocation` pattern (command, prefix, env, origin) so it composes with overrides, PATH detection and the tool manager.
+Bug reports, suggestions, and pull requests are welcome.
+
+If you're adding support for another tool, follow the existing `ToolInvocation` pattern (`command`, `prefix`, `env`, and `origin`). This keeps new integrations compatible with tool overrides, PATH detection, and the built-in tool manager.
+
+For larger changes, opening an issue first is a good way to discuss the approach before putting in the work.
 
 ## License
 
-[GPL-3.0-or-later](LICENSE) — same license as ShadowMountPlus itself.
+SM+ Toolbox is licensed under [GPL-3.0-or-later](LICENSE), the same license used by ShadowMountPlus.
 
-SM+ Toolbox is an independent companion app. It is not affiliated with Sony, and it builds on the work of the [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) contributors, [SvenGDK's UFS2Tool](https://github.com/SvenGDK/UFS2Tool), and [PSBrew's MkPFS](https://github.com/PSBrew/MkPFS).
+This is an independent companion project and is not affiliated with Sony. It builds on the work of the [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) contributors, [SvenGDK's UFS2Tool](https://github.com/SvenGDK/UFS2Tool), and [PSBrew's MkPFS](https://github.com/PSBrew/MkPFS).
