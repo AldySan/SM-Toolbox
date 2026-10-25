@@ -8,6 +8,11 @@
   --radius: 8px;
   --radius-sm: 6px;
   --sidebar-width: 216px;
+  /* Motion: one scale for the whole app. Values stay small so the UI feels
+     responsive rather than animated. */
+  --motion-fast: 120ms;
+  --motion-med: 200ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
 }
 
 [data-theme='dark'] {
@@ -172,6 +177,8 @@ code,
   font-size: 13px;
   text-align: left;
   cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease), color var(--motion-fast) var(--ease),
+    box-shadow var(--motion-fast) var(--ease);
 }
 
 .nav-item:hover {
@@ -192,6 +199,11 @@ code,
   align-items: center;
   justify-content: center;
   flex: none;
+  transition: transform var(--motion-med) var(--ease);
+}
+
+.nav-item.active .nav-icon {
+  transform: scale(1.08);
 }
 
 .sidebar-foot {
@@ -233,6 +245,11 @@ code,
   border-radius: var(--radius);
   padding: 18px 20px;
   margin-bottom: 16px;
+  transition: border-color var(--motion-med) var(--ease), background-color var(--motion-med) var(--ease);
+}
+
+.card:hover {
+  border-color: var(--border-strong);
 }
 
 .card-grid .card {
@@ -409,6 +426,13 @@ input::placeholder {
   padding: 6px 14px;
   cursor: pointer;
   white-space: nowrap;
+  transition: background-color var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease),
+    color var(--motion-fast) var(--ease), transform var(--motion-fast) var(--ease),
+    box-shadow var(--motion-fast) var(--ease);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .btn:hover:not(:disabled) {
@@ -524,6 +548,7 @@ input::placeholder {
   border-radius: 50%;
   background: var(--text-faint);
   flex: none;
+  transition: background-color var(--motion-med) var(--ease);
 }
 
 .dot.ok {
@@ -600,8 +625,8 @@ input::placeholder {
 }
 
 .queue-chip.bad {
-  color: var(--error);
-  border-color: color-mix(in srgb, var(--error) 40%, transparent);
+  color: var(--err);
+  border-color: color-mix(in srgb, var(--err) 40%, transparent);
 }
 
 .queue-list {
@@ -677,7 +702,7 @@ input::placeholder {
 
 .queue-dot.q-failed,
 .queue-dot.q-cancelled {
-  background: var(--error);
+  background: var(--err);
 }
 
 .queue-panel .field-hint {
@@ -1032,7 +1057,7 @@ input::placeholder {
 .progress-fill {
   height: 100%;
   background: var(--accent);
-  transition: width 150ms ease;
+  transition: width var(--motion-med) var(--ease);
 }
 
 .error-text {
@@ -1204,9 +1229,108 @@ input::placeholder {
   background: var(--bg-inset);
   color: var(--text-dim);
   border: 1px solid var(--border);
+  transition: color var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease),
+    background-color var(--motion-fast) var(--ease);
 }
 
 .chip:hover {
   color: var(--text);
   border-color: var(--border-strong);
+}
+
+/* ---------- Motion ---------- */
+
+/* View transitions: the content area re-mounts on navigation (keyed by the
+   active view), so a short enter animation is enough — no exit choreography. */
+.view-anim {
+  animation: view-enter var(--motion-med) var(--ease);
+}
+
+@keyframes view-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* New terminal output fades in; existing lines keep their DOM nodes when the
+   output grows, so the animation only plays for appended lines. */
+.t-line {
+  animation: line-enter var(--motion-fast) linear;
+}
+
+@keyframes line-enter {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Queue rows slide in when added; the running item's dot breathes. */
+.queue-row {
+  animation: queue-enter var(--motion-med) var(--ease);
+}
+
+@keyframes queue-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.queue-dot.q-running {
+  animation: queue-pulse 1.6s var(--ease) infinite;
+}
+
+@keyframes queue-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px transparent;
+  }
+}
+
+/* Collapsible sections expand smoothly via the 0fr/1fr grid trick. */
+.trouble-body-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--motion-med) var(--ease);
+}
+
+.trouble-body-wrap.open {
+  grid-template-rows: 1fr;
+}
+
+.trouble-body-wrap > .trouble-body {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Terminal dock grows and shrinks instead of snapping. */
+.terminal {
+  transition: max-height var(--motion-med) var(--ease);
+}
+
+/* Respect users who ask for stillness. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

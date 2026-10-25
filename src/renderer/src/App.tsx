@@ -98,7 +98,9 @@ export function App() {
           onSelect={setView}
           footer={<span>{appInfo ? `${appInfo.platform} · v${appInfo.version}` : ''}</span>}
         />
-        <main className="content">
+        {/* Keyed by the active view: each navigation remounts the content and
+            plays the enter animation defined in styles.css. */}
+        <main className="content view-anim" key={view}>
           {view === 'home' && (
             <HomeView appInfo={appInfo} settings={settings} env={env} onNavigate={setView} onRefreshEnv={refreshEnv} />
           )}
