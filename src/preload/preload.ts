@@ -53,6 +53,9 @@ const api: SmpApi = {
     payload: (opts) => ipcRenderer.invoke(IPC.SendPayload, opts),
     cancel: (sendId) => ipcRenderer.invoke(IPC.SendCancel, sendId),
   },
+  updates: {
+    check: () => ipcRenderer.invoke(IPC.UpdatesCheck),
+  },
   onJobEvent: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: JobEvent) => callback(payload);
     ipcRenderer.on(IPC.EventJob, listener);

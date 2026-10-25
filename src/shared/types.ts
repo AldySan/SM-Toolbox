@@ -33,6 +33,8 @@ export interface AppSettings {
   };
   privilege: PrivilegeMode;
   defaultOutDir: string;
+  /** Check GitHub for a newer release shortly after launch. */
+  autoCheckUpdates: boolean;
   ps5: {
     host: string;
     port: number;
@@ -47,6 +49,14 @@ export interface AppInfo {
   platform: string;
   arch: string;
   userData: string;
+}
+
+export interface UpdateCheckResult {
+  status: 'available' | 'up-to-date' | 'none' | 'error';
+  currentVersion: string;
+  latestVersion?: string;
+  releaseUrl?: string;
+  message?: string;
 }
 
 export interface ToolCheck {
@@ -220,6 +230,9 @@ export interface SmpApi {
   send: {
     payload(opts: { host: string; port: number; elfPath: string }): Promise<{ sendId: string }>;
     cancel(sendId: string): Promise<boolean>;
+  };
+  updates: {
+    check(): Promise<UpdateCheckResult>;
   };
   onJobEvent(callback: (event: JobEvent) => void): () => void;
   onToolEvent(callback: (event: ToolEvent) => void): () => void;

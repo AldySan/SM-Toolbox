@@ -26,6 +26,7 @@ export const IPC = {
   PayloadDownload: 'tools:download-payload',
   SendPayload: 'send:payload',
   SendCancel: 'send:cancel',
+  UpdatesCheck: 'updates:check',
   EventJob: 'job:event',
   EventTool: 'tool:event',
   EventSend: 'send:event',

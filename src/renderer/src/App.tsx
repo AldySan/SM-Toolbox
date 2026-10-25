@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { AppInfo, AppSettings, BuildSpec, EnvReport, ThemeMode } from '../../shared/types';
+import type { AppInfo, AppSettings, BuildSpec, EnvReport, ThemeMode, UpdateCheckResult } from '../../shared/types';
 import { smp } from './lib/api';
 import { useJobs } from './lib/jobs';
 import { useQueue } from './lib/queue';
@@ -39,6 +39,7 @@ export function App() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [env, setEnv] = useState<EnvReport | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null);
   const jobs = useJobs();
   const queue = useQueue();
 
@@ -82,6 +83,32 @@ export function App() {
     [refreshEnv],
   );
 
+  // Startup update check: one request shortly after launch when enabled in
+  // Settings. Manual checks from the Settings view reuse the same IPC and
+  // overwrite this state, so the sidebar badge always reflects the newest
+  // known result.
+  const autoCheckUpdates = settings?.autoCheckUpdates ?? false;
+  useEffect(() => {
+    if (!autoCheckUpdates) return;
+    const timer = setTimeout(() => {
+      void smp.updates
+        .check()
+        .then((result) => {
+          // Silent by design: anything other than an available update is
+          // ignored here and only surfaced through a manual check.
+          if (result.status === 'available') setUpdateInfo(result);
+        })
+        .catch(() => undefined);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [autoCheckUpdates]);
+
+  const checkUpdates = useCallback(async (): Promise<UpdateCheckResult> => {
+    const result = await smp.updates.check();
+    setUpdateInfo(result);
+    return result;
+  }, []);
+
   const enqueue = useCallback(
     async (spec: BuildSpec) => {
       await queue.add(spec);
@@ -96,7 +123,21 @@ export function App() {
           items={navItems()}
           active={view}
           onSelect={setView}
-          footer={<span>{appInfo ? `${appInfo.platform} · v${appInfo.version}` : ''}</span>}
+          footer={
+            <>
+              <span>{appInfo ? `${appInfo.platform} · v${appInfo.version}` : ''}</span>
+              {updateInfo?.status === 'available' && updateInfo.releaseUrl && (
+                <a
+                  className="update-badge"
+                  href={updateInfo.releaseUrl}
+                  title={`Version ${updateInfo.latestVersion} is available — open the release page`}
+                >
+                  <span className="update-dot" aria-hidden="true" />
+                  Update available
+                </a>
+              )}
+            </>
+          }
         />
         {/* Keyed by the active view: each navigation remounts the content and
             plays the enter animation defined in styles.css. */}
@@ -110,7 +151,15 @@ export function App() {
           {view === 'guide' && <GuideView />}
           {view === 'troubleshoot' && <TroubleshootView />}
           {view === 'settings' && (
-            <SettingsView settings={settings} appInfo={appInfo} env={env} onChange={updateSettings} onRefreshEnv={refreshEnv} />
+            <SettingsView
+              settings={settings}
+              appInfo={appInfo}
+              env={env}
+              updateInfo={updateInfo}
+              onChange={updateSettings}
+              onCheckUpdates={checkUpdates}
+              onRefreshEnv={refreshEnv}
+            />
           )}
         </main>
       </div>
