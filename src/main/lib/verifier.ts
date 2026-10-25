@@ -9,11 +9,11 @@ import type { DetectedImageKind, FileReport, FolderStat } from '../../shared/typ
 
 /* ---------------- folder stats ---------------- */
 
-export function statFolder(input: string): FolderStat | null {
+export async function statFolder(input: string): Promise<FolderStat | null> {
   if (typeof input !== 'string' || input.length === 0) return null;
   let stat: fs.Stats;
   try {
-    stat = fs.statSync(input);
+    stat = await fs.promises.stat(input);
   } catch {
     return { path: input, exists: false, ebootBin: false, paramJson: false, fileCount: 0, dirCount: 0, totalBytes: 0 };
   }
@@ -24,12 +24,14 @@ export function statFolder(input: string): FolderStat | null {
   let fileCount = 0;
   let dirCount = 0;
   let totalBytes = 0;
+  // Async walk: large game dumps hold tens of thousands of files, and a
+  // synchronous walk would freeze every process that shares the main thread.
   const stack: string[] = [input];
   while (stack.length > 0) {
     const current = stack.pop() as string;
     let entries: fs.Dirent[];
     try {
-      entries = fs.readdirSync(current, { withFileTypes: true });
+      entries = await fs.promises.readdir(current, { withFileTypes: true });
     } catch {
       continue;
     }
@@ -41,7 +43,7 @@ export function statFolder(input: string): FolderStat | null {
       } else if (entry.isFile()) {
         fileCount += 1;
         try {
-          totalBytes += fs.statSync(full).size;
+          totalBytes += (await fs.promises.stat(full)).size;
         } catch {
           /* unreadable file: skip size */
         }
@@ -76,8 +78,8 @@ export function statFolder(input: string): FolderStat | null {
   };
 }
 
-export function countFiles(dir: string): number {
-  return statFolder(dir)?.fileCount ?? 0;
+export async function countFiles(dir: string): Promise<number> {
+  return (await statFolder(dir))?.fileCount ?? 0;
 }
 
 /* ---------------- image verification ---------------- */
@@ -118,6 +120,11 @@ function parseExfatBoot(buffer: Buffer): ExfatBoot {
   if (!buffer.subarray(3, 8).equals(EXFAT_ID)) return { valid: false, clusterSize: 0 };
   const bytesPerSectorShift = buffer[0x6c];
   const sectorsPerClusterShift = buffer[0x6d];
+  // exFAT (revision 1.0) bounds: 9..12 for the sector shift, 0..25 for the
+  // cluster shift. Anything outside can only be corruption.
+  if (bytesPerSectorShift < 9 || bytesPerSectorShift > 12 || sectorsPerClusterShift > 25) {
+    return { valid: false, clusterSize: 0 };
+  }
   const bytesPerSector = 1 << bytesPerSectorShift;
   const clusterSize = bytesPerSector << sectorsPerClusterShift;
   return { valid: true, clusterSize };

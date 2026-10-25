@@ -30,8 +30,11 @@ export function SendView(props: {
   const [hostInput, setHostInput] = useState('');
 
   useEffect(() => {
+    // One send at a time is enforced by the busy guard below, so any incoming
+    // event belongs to the most recent send. Filtering by the activeId captured
+    // at effect time would drop the first events of a follow-up send, because
+    // 'connecting' can arrive before the invoke that tells us the new sendId.
     const unsubscribe = smp.onSendEvent((event: SendEvent) => {
-      if (activeId && event.sendId !== activeId) return;
       switch (event.type) {
         case 'connecting':
           setStatus({ phase: 'connecting' });
@@ -56,7 +59,7 @@ export function SendView(props: {
       }
     });
     return unsubscribe;
-  }, [activeId]);
+  }, []);
 
   const downloadPayload = async () => {
     setStatus({ phase: 'busy', text: 'Downloading the latest shadowmountplus.elf…' });

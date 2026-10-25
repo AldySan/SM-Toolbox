@@ -64,11 +64,18 @@ export function useJobs() {
           case 'exit':
             return update(prev, event.jobId, (job) => ({
               ...job,
-              status: event.ok ? 'success' : 'error',
+              status: event.cancelled ? 'cancelled' : event.ok ? 'success' : 'error',
               endedAt: Date.now(),
               exitCode: event.code,
               note: event.note ?? job.note,
-              output: append(job.output, event.ok ? '\n── done ──\n' : `\n── failed (exit ${event.code}) ──\n`),
+              output: append(
+                job.output,
+                event.cancelled
+                  ? '\n── cancelled ──\n'
+                  : event.ok
+                    ? '\n── done ──\n'
+                    : `\n── failed (exit ${event.code}) ──\n`,
+              ),
             }));
           case 'cancelled':
             return update(prev, event.jobId, (job) => ({

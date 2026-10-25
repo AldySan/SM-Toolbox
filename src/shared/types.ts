@@ -130,7 +130,7 @@ export type JobEvent =
   | { jobId: string; type: 'start'; title: string; steps: number }
   | { jobId: string; type: 'step'; index: number; description: string; command: string }
   | { jobId: string; type: 'data'; chunk: string }
-  | { jobId: string; type: 'exit'; code: number; ok: boolean; note?: string }
+  | { jobId: string; type: 'exit'; code: number; ok: boolean; note?: string; cancelled?: boolean }
   | { jobId: string; type: 'cancelled' };
 
 export type ToolEvent =

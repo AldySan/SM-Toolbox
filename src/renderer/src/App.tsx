@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { AppInfo, AppSettings, BuildSpec, EnvReport, ThemeMode } from '../../shared/types';
 import { smp } from './lib/api';
@@ -39,14 +39,25 @@ export function App() {
   const [env, setEnv] = useState<EnvReport | null>(null);
   const jobs = useJobs();
 
+  // Environment detection spawns probe processes (tool version banners); it
+  // must not run on every settings keystroke. Debounce, and skip entirely for
+  // keys that cannot affect the environment.
+  const envTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshEnv = useCallback(() => {
-    void smp.env.detect().then(setEnv);
+    if (envTimer.current) clearTimeout(envTimer.current);
+    envTimer.current = setTimeout(() => {
+      envTimer.current = null;
+      void smp.env.detect().then(setEnv);
+    }, 400);
   }, []);
 
   useEffect(() => {
     void smp.settings.get().then(setSettings);
     void smp.appInfo().then(setAppInfo);
     refreshEnv();
+    return () => {
+      if (envTimer.current) clearTimeout(envTimer.current);
+    };
   }, [refreshEnv]);
 
   useTheme(settings?.theme ?? 'auto');
@@ -58,9 +69,11 @@ export function App() {
       // the settings save to resolve. The persisted result reconciles the
       // state once the save completes.
       setSettings((current) => (current ? { ...current, ...patch } : current));
+      const envRelevant =
+        'repoPath' in patch || 'toolPaths' in patch || 'toolCache' in patch || 'privilege' in patch;
       void smp.settings.set(patch).then((next) => {
         setSettings(next);
-        refreshEnv();
+        if (envRelevant) refreshEnv();
       });
     },
     [refreshEnv],
