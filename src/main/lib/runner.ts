@@ -7,6 +7,7 @@ import { app } from 'electron';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 import type { PrivilegeMode } from '../../shared/types';
 import type { Step } from './recipes';
 
@@ -23,16 +24,23 @@ export interface RunnerOptions {
 
 export interface RunningJob {
   cancel(reason?: string): void;
-  done: Promise<{ code: number; ok: boolean; note?: string }>;
+  done: Promise<JobResult>;
+}
+
+export interface JobResult {
+  code: number;
+  ok: boolean;
+  note?: string;
+  cancelled?: boolean;
 }
 
 export function runJob(jobId: string, steps: Step[], opts: RunnerOptions): RunningJob {
   let cancelled = false;
   let killActive: ((hard?: boolean) => void) | undefined;
 
-  const done = (async (): Promise<{ code: number; ok: boolean; note?: string }> => {
+  const done = (async (): Promise<JobResult> => {
     for (let index = 0; index < steps.length; index += 1) {
-      if (cancelled) return { code: -1, ok: false, note: 'Cancelled' };
+      if (cancelled) return { code: -1, ok: false, note: 'Cancelled', cancelled: true };
       const step = steps[index];
       opts.onStep(index, steps.length, step);
       if (step.kind === 'unlink') {
@@ -48,7 +56,7 @@ export function runJob(jobId: string, steps: Step[], opts: RunnerOptions): Runni
         killActive = kill;
       });
       killActive = undefined;
-      if (cancelled) return { code: -1, ok: false, note: 'Cancelled' };
+      if (cancelled) return { code: -1, ok: false, note: 'Cancelled', cancelled: true };
       if (result.code !== 0) {
         let note: string | undefined;
         if (result.code === ELEVATION_DECLINED) {
@@ -209,6 +217,9 @@ function runElevatedWindows(
   const { inner, log } = writeElevationHelpers(jobId, step);
   let offset = 0;
   let bomStripped = false;
+  // Buffers partial UTF-8 sequences: the log can grow mid-read, and a naive
+  // buffer.toString() would turn a split multi-byte character into mojibake.
+  const decoder = new StringDecoder('utf8');
 
   const pump = () => {
     try {
@@ -220,7 +231,7 @@ function runElevatedWindows(
         fs.readSync(fd, buffer, 0, length, offset);
         fs.closeSync(fd);
         offset = stat.size;
-        let text = buffer.toString('utf8');
+        let text = decoder.write(buffer);
         if (!bomStripped && text.charCodeAt(0) === 0xfeff) {
           text = text.slice(1);
         }

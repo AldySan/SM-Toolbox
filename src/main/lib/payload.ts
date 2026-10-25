@@ -49,12 +49,7 @@ interface GhRelease {
 
 export async function ensurePayload(onStatus: (text: string) => void): Promise<string> {
   const cached = cachedPayloadPath();
-  try {
-    const stat = fs.statSync(cached);
-    if (stat.size > 1024) return cached;
-  } catch {
-    /* not cached yet */
-  }
+  if (isValidElf(cached)) return cached;
 
   fs.mkdirSync(path.dirname(cached), { recursive: true });
   onStatus('Fetching the latest ShadowMountPlus release…');
@@ -63,55 +58,100 @@ export async function ensurePayload(onStatus: (text: string) => void): Promise<s
   if (!asset) throw new Error(`No ${ELF_ASSET} asset in release ${release.tag_name ?? '?'}`);
 
   onStatus(`Downloading ${ELF_ASSET} (${release.tag_name ?? ''})…`);
+  // Download to a .part file and rename on success: an interrupted download
+  // must never leave a truncated payload behind, because a cached file is
+  // trusted outright afterwards.
+  const partial = `${cached}.part`;
   await new Promise<void>((resolve, reject) => {
     const attempt = (url: string, redirects: number) => {
-      https
-        .get(url, { headers: { 'User-Agent': 'sm-toolbox' } }, (res) => {
-          if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-            res.resume();
-            if (redirects <= 0) {
-              reject(new Error('Too many redirects while downloading'));
-              return;
-            }
-            attempt(res.headers.location, redirects - 1);
+      const request = https.get(url, { headers: { 'User-Agent': 'sm-toolbox' } }, (res) => {
+        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          res.resume();
+          if (redirects <= 0) {
+            reject(new Error('Too many redirects while downloading'));
             return;
           }
-          if (res.statusCode !== 200) {
-            res.resume();
-            reject(new Error(`Download failed (${res.statusCode})`));
-            return;
-          }
-          const total = Number(res.headers['content-length'] ?? 0);
-          let received = 0;
-          const file = fs.createWriteStream(cached);
-          res.on('data', (chunk: Buffer) => {
-            received += chunk.length;
-            if (total > 0) onStatus(`Downloading payload… ${Math.round((received / total) * 100)}%`);
-          });
-          res.pipe(file);
-          file.on('finish', () => file.close(() => resolve()));
-          file.on('error', reject);
-        })
-        .on('error', reject);
+          attempt(res.headers.location, redirects - 1);
+          return;
+        }
+        if (res.statusCode !== 200) {
+          res.resume();
+          reject(new Error(`Download failed (${res.statusCode})`));
+          return;
+        }
+        const total = Number(res.headers['content-length'] ?? 0);
+        let received = 0;
+        const file = fs.createWriteStream(partial);
+        const fail = (error: Error) => {
+          file.destroy();
+          request.destroy();
+          reject(error);
+        };
+        res.on('error', fail);
+        res.on('data', (chunk: Buffer) => {
+          received += chunk.length;
+          if (total > 0) onStatus(`Downloading payload… ${Math.round((received / total) * 100)}%`);
+        });
+        res.pipe(file);
+        file.on('finish', () => file.close(() => resolve()));
+        file.on('error', fail);
+      });
+      request.on('error', (error) => {
+        try {
+          fs.rmSync(partial, { force: true });
+        } catch {
+          /* best effort */
+        }
+        reject(error);
+      });
     };
     attempt(asset.browser_download_url, 5);
   });
+  fs.renameSync(partial, cached);
+
+  if (!isValidElf(cached)) {
+    fs.rmSync(cached, { force: true });
+    throw new Error('The downloaded payload does not look like an ELF file.');
+  }
 
   return cached;
+}
+
+/** A payload worth trusting: non-trivial size and the ELF magic bytes. */
+function isValidElf(file: string): boolean {
+  try {
+    const stat = fs.statSync(file);
+    if (!stat.isFile() || stat.size <= 1024) return false;
+    const fd = fs.openSync(file, 'r');
+    try {
+      const header = Buffer.alloc(4);
+      const read = fs.readSync(fd, header, 0, 4, 0);
+      return read === 4 && header[0] === 0x7f && header[1] === 0x45 && header[2] === 0x4c && header[3] === 0x46;
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return false;
+  }
 }
 
 export function sendPayload(
   sendId: string,
   host: string,
   port: number,
+  elfPath: string,
   emit: (event: SendEvent) => void,
 ): { start(): Promise<void>; cancel(): void } {
-  const elfPath = cachedPayloadPath();
   let socket: net.Socket | undefined;
   let cancelled = false;
 
   const done = async (): Promise<void> => {
-    const size = fs.statSync(elfPath).size;
+    let size: number;
+    try {
+      size = fs.statSync(elfPath).size;
+    } catch {
+      throw new Error(`Payload file is not readable: ${elfPath}`);
+    }
     emit({ sendId, type: 'connecting' });
     await new Promise<void>((resolve, reject) => {
       socket = net.connect({ host, port, timeout: 8000 });
@@ -147,7 +187,7 @@ export function sendPayload(
           reject(new Error('Connection lost'));
           return;
         }
-        stream.pipe(socket, { end: true });
+        stream.pipe(socket);
       });
     });
   };

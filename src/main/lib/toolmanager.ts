@@ -89,34 +89,44 @@ function matchAsset(tool: ToolId, assets: ReleaseAsset[]): ReleaseAsset | undefi
 function downloadFile(url: string, dest: string, onProgress: (received: number, total: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const attempt = (url: string, redirects: number) => {
-      https
-        .get(url, { headers: { 'User-Agent': 'sm-toolbox' } }, (res) => {
-          if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-            res.resume();
-            if (redirects <= 0) {
-              reject(new Error('Too many redirects while downloading'));
-              return;
-            }
-            attempt(res.headers.location, redirects - 1);
+      const request = https.get(url, { headers: { 'User-Agent': 'sm-toolbox' }, timeout: 60000 }, (res) => {
+        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          res.resume();
+          if (redirects <= 0) {
+            reject(new Error('Too many redirects while downloading'));
             return;
           }
-          if (res.statusCode !== 200) {
-            res.resume();
-            reject(new Error(`Download failed (${res.statusCode}) for ${url}`));
-            return;
-          }
-          const total = Number(res.headers['content-length'] ?? 0);
-          let received = 0;
-          const file = fs.createWriteStream(dest);
-          res.on('data', (chunk: Buffer) => {
-            received += chunk.length;
-            onProgress(received, total);
-          });
-          res.pipe(file);
-          file.on('finish', () => file.close(() => resolve()));
-          file.on('error', reject);
-        })
-        .on('error', reject);
+          attempt(res.headers.location, redirects - 1);
+          return;
+        }
+        if (res.statusCode !== 200) {
+          res.resume();
+          reject(new Error(`Download failed (${res.statusCode}) for ${url}`));
+          return;
+        }
+        const total = Number(res.headers['content-length'] ?? 0);
+        let received = 0;
+        const file = fs.createWriteStream(dest);
+        // A reset connection mid-stream only surfaces on the response object;
+        // without this the promise would hang forever with a partial file.
+        const fail = (error: Error) => {
+          file.destroy();
+          request.destroy();
+          reject(error);
+        };
+        res.on('error', fail);
+        res.on('data', (chunk: Buffer) => {
+          received += chunk.length;
+          onProgress(received, total);
+        });
+        res.pipe(file);
+        file.on('finish', () => file.close(() => resolve()));
+        file.on('error', fail);
+      });
+      request.on('timeout', () => {
+        request.destroy(new Error(`Download stalled for more than 60s: ${url}`));
+      });
+      request.on('error', reject);
     };
     attempt(url, 5);
   });

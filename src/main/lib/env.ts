@@ -141,7 +141,9 @@ function isWhlDir(dir: string): boolean {
 
 export function resolveTools(settings: AppSettings): ResolvedTools {
   // MkPFS: manual override > console script on PATH > bundled whl via Python.
-  if (settings.toolPaths.mkpfs && fs.existsSync(settings.toolPaths.mkpfs)) {
+  // Overrides must point at an executable file; a directory or a stale path
+  // would otherwise surface later as a confusing "Failed to start" spawn error.
+  if (settings.toolPaths.mkpfs && isExecutable(settings.toolPaths.mkpfs)) {
     const mkpfs: ToolInvocation = { cmd: settings.toolPaths.mkpfs, prefix: [], display: 'mkpfs', origin: 'override' };
     return { mkpfs, ufs2tool: resolveUfs2Tool(settings) };
   }
@@ -162,10 +164,10 @@ export function resolveTools(settings: AppSettings): ResolvedTools {
 function resolveUfs2Tool(settings: AppSettings): ToolInvocation {
   const names = IS_WINDOWS ? ['UFS2Tool.exe', 'ufs2tool.exe'] : ['ufs2tool', 'UFS2Tool'];
   const override = settings.toolPaths.ufs2tool;
-  if (override && fs.existsSync(override)) {
+  if (override && isExecutable(override)) {
     return { cmd: override, prefix: [], display: 'ufs2tool', origin: 'override' };
   }
-  if (settings.toolCache.ufs2tool && fs.existsSync(settings.toolCache.ufs2tool)) {
+  if (settings.toolCache.ufs2tool && isExecutable(settings.toolCache.ufs2tool)) {
     return { cmd: settings.toolCache.ufs2tool, prefix: [], display: 'ufs2tool', origin: 'bundled-whl' };
   }
   for (const name of names) {

@@ -118,7 +118,6 @@ export function registerIpc(): void {
   ipcMain.handle(IPC.EnvDetect, async () => detectEnvironment(loadSettings()));
 
   ipcMain.handle(IPC.FolderStat, (_event, target) => statFolder(asString(target)));
-
   ipcMain.handle(IPC.JobPreview, (_event, raw) => {
     const spec = raw as BuildSpec;
     const steps = buildSteps(spec, stepContext(spec, 0));
@@ -127,7 +126,7 @@ export function registerIpc(): void {
 
   ipcMain.handle(IPC.JobRun, async (event, raw) => {
     const spec = prepareSpec(raw);
-    const sourceFileCount = statFolder(spec.sourceDir)?.fileCount ?? 0;
+    const sourceFileCount = (await statFolder(spec.sourceDir))?.fileCount ?? 0;
     const steps = buildSteps(spec, stepContext(spec, sourceFileCount));
 
     const settings = loadSettings();
@@ -152,7 +151,7 @@ export function registerIpc(): void {
     jobs.set(jobId, running);
     const result = await running.done;
     jobs.delete(jobId);
-    send({ jobId, type: 'exit', code: result.code, ok: result.ok, note: result.note });
+    send({ jobId, type: 'exit', code: result.code, ok: result.ok, note: result.note, cancelled: result.cancelled });
     return { jobId };
   });
 
@@ -278,7 +277,7 @@ export function registerIpc(): void {
       sender.webContents.send(IPC.EventSend, payload);
     };
 
-    const active = sendPayload(sendId, host, port, emit);
+    const active = sendPayload(sendId, host, port, elfPath, emit);
     sends.set(sendId, active);
     void active.start().finally(() => sends.delete(sendId));
     return { sendId };

@@ -51,17 +51,21 @@ export function VerifyView(props: { settings: AppSettings | null }) {
     setInspect(null);
     try {
       setInspect(await smp.verify.inspect(file));
+    } catch (error) {
+      setInspect({ tool: 'mkpfs', output: error instanceof Error ? error.message : String(error) });
     } finally {
       setInspecting(false);
     }
   };
 
-  const ok =
-    report &&
-    report.detected !== 'unknown' &&
-    report.extensionMatches &&
-    report.alignment64k &&
-    report.clusterSize === 65536;
+  // What "green" means depends on the kind: exFAT is fully validated from
+  // the boot sector (cluster size + alignment), UFS2 from the superblock
+  // magic, and PFS is only known from its extension — inspect it to be sure.
+  const kindOk = report?.detected === 'ufs2';
+  const exfatOk =
+    report?.detected === 'exfat' && report.clusterSize === 65536 && report.alignment64k;
+  const ok = Boolean(kindOk || exfatOk);
+  const needsInspect = report?.detected === 'pfs';
 
   return (
     <div className="view">
@@ -89,7 +93,10 @@ export function VerifyView(props: { settings: AppSettings | null }) {
       {report && (
         <div className="card">
           <div className="verify-head">
-            <StatusDot ok={Boolean(ok)} warn={report.detected === 'unknown' || !report.extensionMatches} />
+            <StatusDot
+              ok={ok && report.extensionMatches}
+              warn={needsInspect || report.detected === 'unknown' || !report.extensionMatches}
+            />
             <h2 className="verify-kind">{KIND_LABEL[report.detected]}</h2>
             <span className="mono dim">{formatBytes(report.size)}</span>
             {report.clusterSize && (
