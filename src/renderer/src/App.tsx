@@ -4,8 +4,10 @@ import type { ReactNode } from 'react';
 import type { AppInfo, AppSettings, BuildSpec, EnvReport, ThemeMode } from '../../shared/types';
 import { smp } from './lib/api';
 import { useJobs } from './lib/jobs';
+import { useQueue } from './lib/queue';
 import { Sidebar } from './components/Sidebar';
 import { TerminalDock } from './components/Terminal';
+import { QueuePanel } from './components/QueuePanel';
 import { HomeView } from './views/HomeView';
 import { CreateView } from './views/CreateView';
 import { VerifyView } from './views/VerifyView';
@@ -38,6 +40,7 @@ export function App() {
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [env, setEnv] = useState<EnvReport | null>(null);
   const jobs = useJobs();
+  const queue = useQueue();
 
   // Environment detection spawns probe processes (tool version banners); it
   // must not run on every settings keystroke. Debounce, and skip entirely for
@@ -79,11 +82,11 @@ export function App() {
     [refreshEnv],
   );
 
-  const startJob = useCallback(
+  const enqueue = useCallback(
     async (spec: BuildSpec) => {
-      await jobs.start(spec);
+      await queue.add(spec);
     },
-    [jobs],
+    [queue],
   );
 
   return (
@@ -99,7 +102,7 @@ export function App() {
           {view === 'home' && (
             <HomeView appInfo={appInfo} settings={settings} env={env} onNavigate={setView} onRefreshEnv={refreshEnv} />
           )}
-          {view === 'create' && <CreateView settings={settings} env={env} onStart={startJob} />}
+          {view === 'create' && <CreateView settings={settings} env={env} queue={queue.snapshot} onEnqueue={enqueue} />}
           {view === 'verify' && <VerifyView settings={settings} />}
           {view === 'send' && <SendView settings={settings} onChange={updateSettings} />}
           {view === 'guide' && <GuideView />}
@@ -109,6 +112,13 @@ export function App() {
           )}
         </main>
       </div>
+      <QueuePanel
+        snapshot={queue.snapshot}
+        activeJobId={jobs.activeId}
+        onSelectJob={jobs.setActiveId}
+        onRemove={queue.remove}
+        onClearPending={queue.clearPending}
+      />
       <TerminalDock
         jobs={jobs.jobs}
         activeId={jobs.activeId}

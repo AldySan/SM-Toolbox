@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC } from '../shared/ipc-channels';
-import type { JobEvent, SendEvent, SmpApi, ToolEvent } from '../shared/types';
+import type { JobEvent, QueueSnapshot, SendEvent, SmpApi, ToolEvent } from '../shared/types';
 
 const api: SmpApi = {
   platform: process.platform,
@@ -36,8 +36,13 @@ const api: SmpApi = {
   },
   jobs: {
     preview: (spec) => ipcRenderer.invoke(IPC.JobPreview, spec),
-    run: (spec) => ipcRenderer.invoke(IPC.JobRun, spec),
     cancel: (jobId) => ipcRenderer.invoke(IPC.JobCancel, jobId),
+  },
+  queue: {
+    list: () => ipcRenderer.invoke(IPC.QueueList),
+    add: (spec) => ipcRenderer.invoke(IPC.QueueAdd, spec),
+    remove: (itemId) => ipcRenderer.invoke(IPC.QueueRemove, itemId),
+    clear: () => ipcRenderer.invoke(IPC.QueueClear),
   },
   tools: {
     download: (tool, assetName) => ipcRenderer.invoke(IPC.ToolDownload, tool, assetName),
@@ -62,6 +67,11 @@ const api: SmpApi = {
     const listener = (_event: Electron.IpcRendererEvent, payload: SendEvent) => callback(payload);
     ipcRenderer.on(IPC.EventSend, listener);
     return () => ipcRenderer.removeListener(IPC.EventSend, listener);
+  },
+  onQueueEvent: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, snapshot: QueueSnapshot) => callback(snapshot);
+    ipcRenderer.on(IPC.EventQueue, listener);
+    return () => ipcRenderer.removeListener(IPC.EventQueue, listener);
   },
 };
 

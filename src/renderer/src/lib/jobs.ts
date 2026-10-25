@@ -95,17 +95,11 @@ export function useJobs() {
     return unsubscribe;
   }, []);
 
-  const start = useCallback(async (spec: BuildSpec) => {
-    const { jobId } = await smp.jobs.run(spec);
-    setActiveId(jobId);
-    return jobId;
-  }, []);
-
   const cancel = useCallback((jobId: string) => {
     void smp.jobs.cancel(jobId);
   }, []);
 
-  return { jobs, activeId, setActiveId, start, cancel };
+  return { jobs, activeId, setActiveId, cancel };
 }
 
 function append(output: string, chunk: string): string {
