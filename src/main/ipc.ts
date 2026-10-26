@@ -4,9 +4,17 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { IPC } from '../shared/ipc-channels';
-import type { BuildSpec, JobEvent, SendEvent, ToolEvent, ToolUpdateCheck } from '../shared/types';
+import type {
+  AppSettings,
+  BuildSpec,
+  JobEvent,
+  SendEvent,
+  ToolEvent,
+  ToolUpdateCheck,
+  VerifySnapshot,
+} from '../shared/types';
 import { loadSettings, saveSettings } from './lib/settings';
-import { detectEnvironment, findExecutable, builderScripts, resolveTools } from './lib/env';
+import { detectEnvironment, findExecutable, builderScripts, resolveTools, type BuilderScripts, type ResolvedTools } from './lib/env';
 import { buildSteps, jobTitle, stepsToPreview } from './lib/recipes';
 import { runJob, RunningJob } from './lib/runner';
 import { detectImage, statFolder } from './lib/verifier';
@@ -16,6 +24,7 @@ import { ensurePayload, sendPayload } from './lib/payload';
 import { checkForUpdates } from './lib/updater';
 import { installedTags, planSetup, shouldUpdate, type ManagedTool, type SetupSummary } from './lib/setup';
 import { JobQueue } from './lib/queue';
+import { VerifyQueue } from './lib/verifyqueue';
 import type { QueueSnapshot } from '../shared/types';
 
 const IS_WINDOWS = process.platform === 'win32';
@@ -41,6 +50,18 @@ const asString = (value: unknown): string => (typeof value === 'string' ? value 
 const jobs = new Map<string, RunningJob>();
 let jobCounter = 0;
 
+/** Settings and tool resolution computed once per context instead of once per function. */
+interface JobContext {
+  settings: AppSettings;
+  resolved: ResolvedTools;
+  builders: BuilderScripts;
+}
+
+function jobContext(): JobContext {
+  const settings = loadSettings();
+  return { settings, resolved: resolveTools(settings), builders: builderScripts(downloadedBuildersDir(), bundledBuildersDir()) };
+}
+
 function normalizeOutput(file: string, format: BuildSpec['format']): string {
   const ext = format === 'exfat' ? '.exfat' : format === 'ufs2' ? '.ffpkg' : '.ffpfsc';
   return file.toLowerCase().endsWith(ext) ? file : file + ext;
@@ -56,11 +77,19 @@ function prepareSpec(raw: unknown): BuildSpec {
   }
   if (!outputFile) throw new Error('Output file is required');
 
-  const settings = loadSettings();
-  const resolved = resolveTools(settings);
+  // Building the image inside its own source folder feeds the copy step with
+  // the growing image itself (and a delete-source step would take the output
+  // down with it). Refuse up front instead of corrupting the build.
+  const sourceRoot = path.resolve(sourceDir);
+  const outputAbs = path.resolve(outputFile);
+  if (outputAbs === sourceRoot || outputAbs.startsWith(sourceRoot + path.sep)) {
+    throw new Error('The output image must live outside the source folder.');
+  }
+
+  const { resolved, builders } = jobContext();
 
   if (spec.format === 'exfat' || (spec.format === 'ffpfsc' && (spec.innerFormat ?? 'exfat') === 'exfat')) {
-    if (!builderScripts(downloadedBuildersDir(), bundledBuildersDir()).ok) {
+    if (!builders.ok) {
       throw new Error(
         'No exFAT builder script available. Fetch the scripts from Settings → Tools, or reinstall the toolbox (it ships its own copy).',
       );
@@ -73,21 +102,32 @@ function prepareSpec(raw: unknown): BuildSpec {
     throw new Error('MkPFS was not found. Download it from Settings, Tools (requires Python 3).');
   }
 
-  const dir = path.dirname(path.resolve(outputFile));
+  const dir = path.dirname(outputAbs);
   fs.mkdirSync(dir, { recursive: true });
 
   return { ...spec, sourceDir, outputFile };
 }
 
-function stepContext(spec: BuildSpec, sourceFileCount: number) {
-  const settings = loadSettings();
-  const resolved = resolveTools(settings);
+/** Human-readable summary of a finished build's output, for auto-verify. */
+function autoVerifySummary(file: string): { text: string; note: string } | null {
+  const report = detectImage(file);
+  if (!report) return null;
+  const pass =
+    report.detected === 'ufs2' ||
+    (report.detected === 'exfat' && report.clusterSize === 65536 && report.alignment64k);
+  const flags: string[] = [];
+  if (!report.extensionMatches) flags.push('extension mismatch');
+  if (report.detected === 'exfat' && report.clusterSize !== undefined && report.clusterSize !== 65536) {
+    flags.push(`${report.clusterSize / 1024} KiB clusters`);
+  }
+  const head = `── auto-verify: ${pass ? 'OK' : 'CHECK'} — ${report.detected.toUpperCase()}${
+    report.clusterSize ? ` · ${report.clusterSize / 1024} KiB clusters` : ''
+  }${flags.length > 0 ? ` · ${flags.join(', ')}` : ''} ──`;
   return {
-    isWindows: IS_WINDOWS,
-    buildersDir: builderScripts(downloadedBuildersDir(), bundledBuildersDir()).dir,
-    mkpfs: resolved.mkpfs,
-    ufs2tool: resolved.ufs2tool,
-    sourceFileCount,
+    text: `\n${head}\n${report.notes.map((note) => `  · ${note}`).join('\n')}\n`,
+    note: pass
+      ? `Verified: ${report.detected}`
+      : `Auto-verify flagged: ${report.detected}${flags.length > 0 ? ` (${flags.join(', ')})` : ''}`,
   };
 }
 
@@ -96,14 +136,57 @@ async function launchJob(
   sender: BrowserWindow | null,
   spec: BuildSpec,
 ): Promise<{ jobId: string; done: ReturnType<typeof runJob>['done'] }> {
-  const sourceFileCount = (await statFolder(spec.sourceDir))?.fileCount ?? 0;
-  const steps = buildSteps(spec, stepContext(spec, sourceFileCount));
+  const { settings, resolved, builders } = jobContext();
+  // The source walk exists purely to size the UFS2 inode table; skipping it
+  // for every other format cuts the wait before the first tool even starts.
+  const needsFileCount = spec.format === 'ufs2' && (spec.inodeDensity ?? 'auto') === 'auto';
+  const sourceFileCount = needsFileCount ? (await statFolder(spec.sourceDir))?.fileCount ?? 0 : 0;
+  const steps = buildSteps(spec, {
+    isWindows: IS_WINDOWS,
+    buildersDir: builders.dir,
+    mkpfs: resolved.mkpfs,
+    ufs2tool: resolved.ufs2tool,
+    sourceFileCount,
+  });
 
-  const settings = loadSettings();
   const jobId = `job-${++jobCounter}`;
+  // Job events go to the window that enqueued the item; when that window is
+  // gone (closed mid-queue) fall back to any live window so the output keeps
+  // streaming instead of silently vanishing.
+  const target = (): BrowserWindow | null => {
+    if (sender && !sender.isDestroyed()) return sender;
+    return BrowserWindow.getAllWindows().find((win) => !win.isDestroyed()) ?? null;
+  };
+  const safeSend = (payload: JobEvent) => {
+    const win = target();
+    if (!win) return;
+    win.webContents.send(IPC.EventJob, payload);
+  };
+
+  // Tool output arrives line by line; forwarding each chunk as its own IPC
+  // message floods the renderer (which re-renders the terminal per message).
+  // Coalesce into ~8 KiB batches flushed at most every 50 ms instead.
+  let chunkBuffer = '';
+  let flushTimer: ReturnType<typeof setTimeout> | null = null;
+  const flush = () => {
+    if (flushTimer) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+    if (chunkBuffer) {
+      safeSend({ jobId, type: 'data', chunk: chunkBuffer });
+      chunkBuffer = '';
+    }
+  };
   const send = (payload: JobEvent) => {
-    if (!sender || sender.isDestroyed()) return;
-    sender.webContents.send(IPC.EventJob, payload);
+    if (payload.type === 'data') {
+      chunkBuffer += payload.chunk;
+      if (chunkBuffer.length >= 8192) flush();
+      else if (!flushTimer) flushTimer = setTimeout(flush, 50);
+    } else {
+      flush();
+      safeSend(payload);
+    }
   };
 
   send({ jobId, type: 'start', title: jobTitle(spec), steps: steps.length });
@@ -118,7 +201,25 @@ async function launchJob(
     onData: (chunk) => send({ jobId, type: 'data', chunk }),
   });
   jobs.set(jobId, running);
-  const done = running.done.finally(() => jobs.delete(jobId));
+  const done = running.done
+    .then((result) => {
+      let note = result.note;
+      if (result.ok && spec.autoVerify) {
+        const verdict = autoVerifySummary(spec.outputFile);
+        if (verdict) {
+          send({ jobId, type: 'data', chunk: verdict.text });
+          note = verdict.note;
+        }
+      }
+      // The renderer finalizes the terminal from this event; without it a
+      // finished build keeps showing as "Running" forever.
+      send({ jobId, type: 'exit', code: result.code, ok: result.ok, note, cancelled: result.cancelled });
+      return note === result.note ? result : { ...result, note };
+    })
+    .finally(() => {
+      flush();
+      jobs.delete(jobId);
+    });
   return { jobId, done };
 }
 
@@ -144,12 +245,16 @@ export function registerIpc(): void {
   });
 
   ipcMain.handle(IPC.DialogPickFile, async (_event, opts) => {
+    const properties: ('openFile' | 'multiSelections')[] = ['openFile'];
+    if (opts?.multi) properties.push('multiSelections');
     const result = await dialog.showOpenDialog({
-      properties: ['openFile'],
+      properties,
       title: opts?.title,
       filters: opts?.filters,
     });
-    return result.canceled ? null : (result.filePaths[0] ?? null);
+    // The preload bridge narrows the array back to a single path (or keeps
+    // the whole array for the multi-select picker).
+    return result.canceled ? null : result.filePaths;
   });
 
   ipcMain.handle(IPC.DialogPickSave, async (_event, opts) => {
@@ -176,7 +281,14 @@ export function registerIpc(): void {
   ipcMain.handle(IPC.FolderStat, (_event, target) => statFolder(asString(target)));
   ipcMain.handle(IPC.JobPreview, (_event, raw) => {
     const spec = raw as BuildSpec;
-    const steps = buildSteps(spec, stepContext(spec, 0));
+    const { resolved, builders } = jobContext();
+    const steps = buildSteps(spec, {
+      isWindows: IS_WINDOWS,
+      buildersDir: builders.dir,
+      mkpfs: resolved.mkpfs,
+      ufs2tool: resolved.ufs2tool,
+      sourceFileCount: 0,
+    });
     return { title: jobTitle(spec), steps: stepsToPreview(steps) };
   });
 
@@ -251,25 +363,27 @@ export function registerIpc(): void {
 
   ipcMain.handle(IPC.ToolCheckUpdates, async () => {
     const settings = loadSettings();
-    const results: ToolUpdateCheck[] = [];
-    for (const tool of ['mkpfs', 'ufs2tool'] as const) {
-      const current = settings.toolVersions[tool];
-      if (!current) {
-        results.push({ tool, updateAvailable: false, message: 'Not installed through the toolbox' });
-        continue;
-      }
-      try {
-        const latest = (await listAssets(tool)).version;
-        results.push({ tool, current, latest, updateAvailable: shouldUpdate(current, latest) });
-      } catch (error) {
-        results.push({
-          tool,
-          current,
-          updateAvailable: false,
-          message: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
+    // Both GitHub queries are independent; asking them concurrently keeps a
+    // slow release API from doubling the wait.
+    const results: ToolUpdateCheck[] = await Promise.all(
+      (['mkpfs', 'ufs2tool'] as const).map(async (tool) => {
+        const current = settings.toolVersions[tool];
+        if (!current) {
+          return { tool, updateAvailable: false, message: 'Not installed through the toolbox' } as ToolUpdateCheck;
+        }
+        try {
+          const latest = (await listAssets(tool)).version;
+          return { tool, current, latest, updateAvailable: shouldUpdate(current, latest) };
+        } catch (error) {
+          return {
+            tool,
+            current,
+            updateAvailable: false,
+            message: error instanceof Error ? error.message : String(error),
+          } satisfies ToolUpdateCheck;
+        }
+      }),
+    );
 
     // Builder scripts: compare the fingerprint of the copy actually in use
     // (fetched or bundled) against the published upstream pair. Content
@@ -385,7 +499,32 @@ export function registerIpc(): void {
 
   ipcMain.handle(IPC.VerifyFile, (_event, target) => detectImage(asString(target)));
 
-  ipcMain.handle(IPC.VerifyInspect, async (event, target) => {
+  // Batch verification: any number of images can be queued at once and are
+  // checked one after another, mirroring the build queue.
+  const broadcastVerifyQueue = (snapshot: VerifySnapshot) => {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) win.webContents.send(IPC.EventVerifyQueue, snapshot);
+    }
+  };
+
+  const verifyQueue = new VerifyQueue({
+    launcher: { verify: (file) => Promise.resolve(detectImage(file)) },
+    onChange: broadcastVerifyQueue,
+  });
+
+  ipcMain.handle(IPC.VerifyQueueList, () => verifyQueue.snapshot());
+
+  ipcMain.handle(IPC.VerifyQueueAdd, (_event, raw) => {
+    const paths = Array.isArray(raw) ? raw.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0) : [];
+    const { items, skipped } = verifyQueue.add(paths);
+    return { added: items.length, skipped };
+  });
+
+  ipcMain.handle(IPC.VerifyQueueRemove, (_event, itemId) => verifyQueue.remove(asString(itemId)));
+
+  ipcMain.handle(IPC.VerifyQueueClear, () => verifyQueue.clear());
+
+  ipcMain.handle(IPC.VerifyInspect, async (_event, target) => {
     const file = asString(target);
     if (!file || !fs.existsSync(file)) return null;
 
@@ -397,13 +536,6 @@ export function registerIpc(): void {
     const wantsPfs =
       report?.detected === 'pfs' || extension === '.ffpfsc' || extension === '.ffpfs' || report?.detected === 'exfat';
     const wantsUfs = report?.detected === 'ufs2' || report?.detected === 'ufs1' || extension === '.ffpkg';
-
-    const sender = BrowserWindow.fromWebContents(event.sender);
-    const notify = (chunk: string) => {
-      if (sender && !sender.isDestroyed()) {
-        sender.webContents.send(IPC.EventJob, { jobId: `inspect-${Date.now()}`, type: 'data', chunk } as JobEvent);
-      }
-    };
 
     const capture = (cmd: string, args: string[], env?: Record<string, string>): Promise<string> =>
       new Promise((resolve, reject) => {
@@ -435,7 +567,6 @@ export function registerIpc(): void {
     // Nothing runnable: report why instead of failing silently.
     const which = wantsPfs ? 'MkPFS' : wantsUfs ? 'UFS2Tool' : 'an inspector';
     const output = `${which} is not available for this file. Download it from Settings, Tools.`;
-    notify(output);
     return { tool: wantsPfs ? 'mkpfs' : 'ufs2tool', output };
   });
 

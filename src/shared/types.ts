@@ -42,6 +42,11 @@ export interface AppSettings {
   autoCheckUpdates: boolean;
   /** Icon-only sidebar; persisted so it survives restarts. */
   sidebarCollapsed: boolean;
+  /** Startup defaults for the Create view. */
+  createDefaults: {
+    autoVerify: boolean;
+    deleteSource: boolean;
+  };
   ps5: {
     host: string;
     port: number;
@@ -138,7 +143,8 @@ export interface InspectResult {
   output: string;
 }
 
-export interface BuildSpec {  format: ImageFormat;
+export interface BuildSpec {
+  format: ImageFormat;
   sourceDir: string;
   outputFile: string;
   /** For ffpfsc: the nested image format packed inside the container. */
@@ -149,6 +155,10 @@ export interface BuildSpec {  format: ImageFormat;
   label?: string;
   /** Keep the intermediate nested image after packing an ffpfsc. */
   keepIntermediate?: boolean;
+  /** Verify the output image with the built-in checker once the build succeeds. */
+  autoVerify?: boolean;
+  /** Delete the source folder after a successful build (the step never runs when any build step fails). */
+  deleteSourceAfterSuccess?: boolean;
 }
 
 export interface JobStepPreview {
@@ -186,6 +196,25 @@ export interface QueueSnapshot {
   currentId: string | null;
 }
 
+export interface VerifyItem {
+  id: string;
+  status: 'pending' | 'running' | 'done' | 'failed';
+  addedAt: number;
+  /** Absolute path being verified. */
+  path: string;
+  /** File name shown in the list. */
+  name: string;
+  /** Filled once verification finished. */
+  report?: FileReport;
+  error?: string;
+}
+
+export interface VerifySnapshot {
+  items: VerifyItem[];
+  /** Id of the item currently being verified, if any. */
+  currentId: string | null;
+}
+
 export type ToolEvent =
   | { tool: string; type: 'status'; text: string }
   | { tool: string; type: 'progress'; received: number; total: number }
@@ -215,6 +244,8 @@ export interface SmpApi {
   dialogs: {
     pickFolder(title?: string): Promise<string | null>;
     pickFile(opts?: { title?: string; filters?: FileFilter[] }): Promise<string | null>;
+    /** Multi-select variant: resolves with every picked path. */
+    pickFiles(opts?: { title?: string; filters?: FileFilter[] }): Promise<string[]>;
     pickSave(opts?: { title?: string; defaultPath?: string; filters?: FileFilter[] }): Promise<string | null>;
   };
   shell: {
@@ -233,6 +264,12 @@ export interface SmpApi {
   verify: {
     file(path: string): Promise<FileReport | null>;
     inspect(path: string): Promise<InspectResult | null>;
+  };
+  verifyQueue: {
+    list(): Promise<VerifySnapshot>;
+    add(paths: string[]): Promise<{ added: number; skipped: number }>;
+    remove(itemId: string): Promise<boolean>;
+    clear(): Promise<number>;
   };
   jobs: {
     preview(spec: BuildSpec): Promise<{ title: string; steps: JobStepPreview[] }>;
@@ -270,4 +307,5 @@ export interface SmpApi {
   onToolEvent(callback: (event: ToolEvent) => void): () => void;
   onSendEvent(callback: (event: SendEvent) => void): () => void;
   onQueueEvent(callback: (snapshot: QueueSnapshot) => void): () => void;
+  onVerifyQueueEvent(callback: (snapshot: VerifySnapshot) => void): () => void;
 }

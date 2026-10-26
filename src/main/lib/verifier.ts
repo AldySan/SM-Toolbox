@@ -26,6 +26,7 @@ export async function statFolder(input: string): Promise<FolderStat | null> {
   let totalBytes = 0;
   // Async walk: large game dumps hold tens of thousands of files, and a
   // synchronous walk would freeze every process that shares the main thread.
+  const files: string[] = [];
   const stack: string[] = [input];
   while (stack.length > 0) {
     const current = stack.pop() as string;
@@ -42,21 +43,38 @@ export async function statFolder(input: string): Promise<FolderStat | null> {
         stack.push(full);
       } else if (entry.isFile()) {
         fileCount += 1;
-        try {
-          totalBytes += (await fs.promises.stat(full)).size;
-        } catch {
-          /* unreadable file: skip size */
-        }
+        files.push(full);
       }
     }
   }
+  // File sizes are stat'ed by a small worker pool: awaiting them one by one
+  // costs an extra event-loop round trip per file, which alone adds seconds
+  // on dumps with tens of thousands of files.
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(64, files.length) }, async () => {
+    while (cursor < files.length) {
+      const file = files[cursor];
+      cursor += 1;
+      try {
+        totalBytes += (await fs.promises.stat(file)).size;
+      } catch {
+        /* unreadable file: skip size */
+      }
+    }
+  });
+  await Promise.all(workers);
 
+  const ebootBinPath = path.join(input, 'eboot.bin');
   const paramJsonPath = path.join(input, 'sce_sys', 'param.json');
-  const paramJson = fs.existsSync(paramJsonPath);
+  const [ebootStat, paramStat] = await Promise.all([
+    fs.promises.stat(ebootBinPath).then(() => true, () => false),
+    fs.promises.stat(paramJsonPath).then(() => true, () => false),
+  ]);
+  const paramJson = paramStat;
   let paramInfo: FolderStat['paramInfo'];
   if (paramJson) {
     try {
-      const parsed = JSON.parse(fs.readFileSync(paramJsonPath, 'utf8')) as Record<string, unknown>;
+      const parsed = JSON.parse(await fs.promises.readFile(paramJsonPath, 'utf8')) as Record<string, unknown>;
       paramInfo = {
         titleId: typeof parsed.titleId === 'string' ? parsed.titleId : undefined,
         contentId: typeof parsed.contentId === 'string' ? parsed.contentId : undefined,
@@ -69,7 +87,7 @@ export async function statFolder(input: string): Promise<FolderStat | null> {
   return {
     path: input,
     exists: true,
-    ebootBin: fs.existsSync(path.join(input, 'eboot.bin')),
+    ebootBin: ebootStat,
     paramJson,
     paramInfo,
     fileCount,

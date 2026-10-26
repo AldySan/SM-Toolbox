@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC } from '../shared/ipc-channels';
-import type { JobEvent, QueueSnapshot, SendEvent, SmpApi, ToolEvent } from '../shared/types';
+import type { JobEvent, QueueSnapshot, SendEvent, SmpApi, ToolEvent, VerifySnapshot } from '../shared/types';
 
 const api: SmpApi = {
   platform: process.platform,
@@ -12,7 +12,14 @@ const api: SmpApi = {
   appInfo: () => ipcRenderer.invoke(IPC.AppInfo),
   dialogs: {
     pickFolder: (title) => ipcRenderer.invoke(IPC.DialogPickFolder, title),
-    pickFile: (opts) => ipcRenderer.invoke(IPC.DialogPickFile, opts),
+    // The main handler always resolves with the full path array (or null);
+    // single-file callers get the first entry narrowed here.
+    pickFile: (opts) =>
+      ipcRenderer.invoke(IPC.DialogPickFile, opts).then((paths: string[] | null) => paths?.[0] ?? null),
+    pickFiles: (opts) =>
+      ipcRenderer.invoke(IPC.DialogPickFile, { ...opts, multi: true }).then(
+        (paths: string[] | null) => paths ?? [],
+      ),
     pickSave: (opts) => ipcRenderer.invoke(IPC.DialogPickSave, opts),
   },
   shell: {
@@ -33,6 +40,12 @@ const api: SmpApi = {
   verify: {
     file: (path) => ipcRenderer.invoke(IPC.VerifyFile, path),
     inspect: (path) => ipcRenderer.invoke(IPC.VerifyInspect, path),
+  },
+  verifyQueue: {
+    list: () => ipcRenderer.invoke(IPC.VerifyQueueList),
+    add: (paths) => ipcRenderer.invoke(IPC.VerifyQueueAdd, paths),
+    remove: (itemId) => ipcRenderer.invoke(IPC.VerifyQueueRemove, itemId),
+    clear: () => ipcRenderer.invoke(IPC.VerifyQueueClear),
   },
   jobs: {
     preview: (spec) => ipcRenderer.invoke(IPC.JobPreview, spec),
@@ -83,6 +96,11 @@ const api: SmpApi = {
     const listener = (_event: Electron.IpcRendererEvent, snapshot: QueueSnapshot) => callback(snapshot);
     ipcRenderer.on(IPC.EventQueue, listener);
     return () => ipcRenderer.removeListener(IPC.EventQueue, listener);
+  },
+  onVerifyQueueEvent: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, snapshot: VerifySnapshot) => callback(snapshot);
+    ipcRenderer.on(IPC.EventVerifyQueue, listener);
+    return () => ipcRenderer.removeListener(IPC.EventVerifyQueue, listener);
   },
 };
 

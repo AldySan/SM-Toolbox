@@ -15,6 +15,10 @@ export const IPC = {
   FolderStat: 'folder:stat',
   VerifyFile: 'verify:file',
   VerifyInspect: 'verify:inspect',
+  VerifyQueueList: 'verify:queue-list',
+  VerifyQueueAdd: 'verify:queue-add',
+  VerifyQueueRemove: 'verify:queue-remove',
+  VerifyQueueClear: 'verify:queue-clear',
   JobPreview: 'job:preview',
   JobCancel: 'job:cancel',
   QueueList: 'queue:list',
@@ -35,4 +39,5 @@ export const IPC = {
   EventTool: 'tool:event',
   EventSend: 'send:event',
   EventQueue: 'queue:event',
+  EventVerifyQueue: 'verify:queue-event',
 } as const;

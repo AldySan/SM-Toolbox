@@ -45,7 +45,7 @@ export function runJob(jobId: string, steps: Step[], opts: RunnerOptions): Runni
       opts.onStep(index, steps.length, step);
       if (step.kind === 'unlink') {
         try {
-          await fs.promises.rm(step.target, { force: true });
+          await fs.promises.rm(step.target, { force: true, recursive: step.recursive === true });
         } catch (error) {
           return { code: -1, ok: false, note: `Failed to remove ${step.target}: ${String(error)}` };
         }
