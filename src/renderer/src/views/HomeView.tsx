@@ -1,8 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { AppInfo, AppSettings, EnvReport, SetupSummary, ToolCheck, ToolEvent } from '../../../shared/types';
 import { smp } from '../lib/api';
 import { StatusDot } from '../components/StatusDot';
+
+interface FormatReadiness {
+  id: string;
+  label: string;
+  ext: string;
+  ok: boolean;
+  blockers: string[];
+}
 
 export function HomeView(props: {
   appInfo: AppInfo | null;
@@ -12,7 +21,7 @@ export function HomeView(props: {
   onRefreshEnv: () => void;
 }) {
   const { appInfo, env } = props;
-  const relevantTools = (env?.tools ?? []).filter((tool) => isRelevant(tool, env));
+  const detecting = env === null;
 
   // One-click setup: the download progress arrives as regular tool events,
   // so the status line follows whatever the setup is currently doing.
@@ -45,86 +54,129 @@ export function HomeView(props: {
       .finally(() => setSetupRunning(false));
   };
 
+  const formats = formatReadiness(env);
+  const readyCount = formats.filter((format) => format.ok).length;
+  const allReady = !detecting && readyCount === formats.length;
+
   return (
     <div className="view">
-      <div className="view-head">
-        <h1>SM+ Toolbox</h1>
-        <p className="sub">Companion app for ShadowMountPlus, the background auto-mounter for jailbroken PS5 consoles.</p>
-      </div>
-
-      <div className="card-grid">
-        <div className="card">
-          <h2>Quick actions</h2>
-          <div className="quick-actions">
-            <button type="button" className="btn primary" onClick={() => props.onNavigate('create')}>
-              Create an image
-            </button>
-            <button type="button" className="btn" onClick={() => props.onNavigate('settings')}>
-              Manage tools
-            </button>
-          </div>
-          <p className="dim">
-            Build UFS2, exFAT or compressed PFS images from a game dump, with the exact profiles documented by
-            ShadowMountPlus.
+      <header className="home-hero">
+        <div className="home-hero-main">
+          <p className="home-eyebrow">
+            {greeting()}
+            {appInfo ? ` · ${appInfo.platform} · v${appInfo.version}` : ' · SM+ Toolbox'}
+          </p>
+          <h1>Turn game dumps into console-ready images.</h1>
+          <p className="sub">
+            Create UFS2, exFAT or compressed PFS images, verify them, and send the payload to your PS5 — without
+            living in a terminal.
           </p>
         </div>
-
-        <div className="card">
-          <div className="card-head-row">
-            <h2>Environment</h2>
-            <button type="button" className="btn btn-small" onClick={props.onRefreshEnv}>
-              Recheck
-            </button>
-          </div>
-          <ul className="env-list">
-            {relevantTools.map((tool) => (
-              <li key={tool.id}>
-                <StatusDot ok={tool.found} />
-                <span className="env-label">{tool.label}</span>
-                <span className="env-detail mono">
-                  {tool.found ? (tool.version ?? tool.path ?? 'found') : (tool.detail ?? 'not found')}
-                </span>
-              </li>
-            ))}
-          </ul>
-          {setupRunning && <p className="field-hint">{setupStatus ?? 'Preparing…'}</p>}
-          {!setupRunning && missingManaged && !setupSummary && (
-            <div className="setup-row">
-              <button type="button" className="btn primary btn-small" onClick={runSetup}>
-                Set up everything
-              </button>
-              <span className="field-hint">Downloads MkPFS and UFS2Tool in one go — everything else is listed above.</span>
-            </div>
-          )}
-          {!setupRunning && setupSummary && <SetupResult summary={setupSummary} />}
-          {env && env.tools.some((tool) => !tool.found) && (
-            <p className="field-hint">
-              Not everything is required: the checkout and exFAT tools matter only for exFAT images, MkPFS only for
-              compressed PFS, UFS2Tool only for UFS2. Missing pieces with a fix note can be set up from{' '}
-              <a
-                href=""
-                onClick={(event) => {
-                  event.preventDefault();
-                  props.onNavigate('settings');
-                }}
-              >
-                Settings
-              </a>
-              .
-            </p>
-          )}
+        <div className={`home-status${allReady ? ' ready' : detecting ? ' detecting' : ' incomplete'}`}>
+          <span className="home-status-title">
+            {detecting ? 'Detecting your setup…' : allReady ? 'Ready to build' : `${readyCount} of ${formats.length} formats ready`}
+          </span>
+          <span className="home-status-sub">
+            {detecting
+              ? 'Checking tools on this machine'
+              : allReady
+                ? 'Every image format this toolbox supports'
+                : missingManaged
+                  ? 'One click installs MkPFS and UFS2Tool'
+                  : 'Finish the rest in Settings'}
+          </span>
         </div>
+      </header>
+
+      <div className="home-actions">
+        <ActionTile
+          primary
+          icon={<CreateTileIcon />}
+          title="Create an image"
+          desc="Package a game dump as .ffpkg, .exfat or .ffpfsc."
+          onClick={() => props.onNavigate('create')}
+        />
+        <ActionTile
+          icon={<VerifyTileIcon />}
+          title="Verify a file"
+          desc="Check image headers and structure before they reach the console."
+          onClick={() => props.onNavigate('verify')}
+        />
+        <ActionTile
+          icon={<SendTileIcon />}
+          title="Send the payload"
+          desc="Push the ShadowMountPlus payload to your PS5 over the network."
+          onClick={() => props.onNavigate('send')}
+        />
+        <ActionTile
+          icon={<GuideTileIcon />}
+          title="Read the guide"
+          desc="Formats, profiles and the whole workflow, explained in order."
+          onClick={() => props.onNavigate('guide')}
+        />
       </div>
 
-      <div className="card">
+      <section className="card">
+        <div className="card-head-row">
+          <h2>Build readiness</h2>
+          <button type="button" className="btn btn-small" onClick={props.onRefreshEnv}>
+            Recheck
+          </button>
+        </div>
+        <div className="readiness-bar" aria-hidden="true">
+          <span style={{ width: `${detecting ? 0 : (readyCount / formats.length) * 100}%` }} />
+        </div>
+        <ul className="format-list">
+          {formats.map((format) => (
+            <li key={format.id}>
+              <StatusDot ok={format.ok} warn={detecting} />
+              <span className="format-label">{format.label}</span>
+              <span className="format-ext mono">{format.ext}</span>
+              <span className={`format-note${format.ok && !detecting ? ' ok-text' : ' dim'}`}>
+                {detecting
+                  ? 'checking…'
+                  : format.ok
+                    ? 'ready'
+                    : format.blockers.length > 0
+                      ? `needs ${format.blockers.join(', ')}`
+                      : 'not detected'}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {setupRunning && <p className="field-hint">{setupStatus ?? 'Preparing…'}</p>}
+        {!setupRunning && missingManaged && !setupSummary && (
+          <div className="setup-row">
+            <button type="button" className="btn primary btn-small" onClick={runSetup}>
+              Set up everything
+            </button>
+            <span className="field-hint">Downloads MkPFS and UFS2Tool in one go.</span>
+          </div>
+        )}
+        {!setupRunning && setupSummary && <SetupResult summary={setupSummary} />}
+        {!detecting && !allReady && !missingManaged && (
+          <p className="field-hint">
+            The remaining pieces are system tools or the ShadowMountPlus checkout —{' '}
+            <a
+              href=""
+              onClick={(event) => {
+                event.preventDefault();
+                props.onNavigate('settings');
+              }}
+            >
+              Settings
+            </a>{' '}
+            lists what is missing and how to install it.
+          </p>
+        )}
+      </section>
+
+      <section className="card">
         <h2>About</h2>
-        <p>
-          SM+ Toolbox wraps the ShadowMountPlus build workflow in a desktop app: create UFS2, exFAT and compressed PFS
-          images from game dumps, verify them, send the payload to your console, and troubleshoot setups without
-          living in a terminal.
-        </p>
         <p className="dim">
-          ShadowMountPlus is developed by Drakmor and contributors. This client is licensed GPL-3.0-or-later.
+          SM+ Toolbox wraps the ShadowMountPlus build workflow in a desktop app: create images from game dumps,
+          verify them, send the payload to your console, and troubleshoot setups without a terminal. ShadowMountPlus
+          is developed by Drakmor and contributors; this client is licensed GPL-3.0-or-later.
         </p>
         <p className="links">
           <a href="https://github.com/drakmor/ShadowMountPlus">Repository</a>
@@ -133,20 +185,24 @@ export function HomeView(props: {
           <span aria-hidden="true">·</span>
           <a href="https://github.com/drakmor/ShadowMountPlus/releases">Releases</a>
         </p>
-        {appInfo && (
-          <dl className="kv kv-slim">
-            <dt>Toolbox</dt>
-            <dd>v{appInfo.version}</dd>
-            <dt>Platform</dt>
-            <dd>
-              {appInfo.platform} ({appInfo.arch})
-            </dd>
-            <dt>Electron</dt>
-            <dd>{appInfo.electron}</dd>
-          </dl>
-        )}
-      </div>
+      </section>
     </div>
+  );
+}
+
+function ActionTile(props: { icon: ReactNode; title: string; desc: string; onClick: () => void; primary?: boolean }) {
+  return (
+    <button
+      type="button"
+      className={`action-tile${props.primary ? ' primary' : ''}`}
+      onClick={props.onClick}
+    >
+      <span className="tile-icon">{props.icon}</span>
+      <span className="tile-text">
+        <span className="tile-title">{props.title}</span>
+        <span className="tile-desc">{props.desc}</span>
+      </span>
+    </button>
   );
 }
 
@@ -170,9 +226,78 @@ function SetupResult(props: { summary: SetupSummary }) {
   );
 }
 
-function isRelevant(tool: ToolCheck, env: EnvReport | null): boolean {
-  if (!env) return ['mkpfs', 'ufs2tool', 'repo'].includes(tool.id);
-  if (env.isLinux) return !['osfmount', 'powershell'].includes(tool.id);
-  if (env.isWindows) return !['mkfs.exfat', 'mount.exfat-fuse', 'rsync'].includes(tool.id);
-  return true;
+/** Per-format readiness: which image types can this machine actually build right now. */
+function formatReadiness(env: EnvReport | null): FormatReadiness[] {
+  const tools = env?.tools ?? [];
+  const byId = new Map<string, ToolCheck>(tools.map((tool) => [tool.id, tool] as const));
+
+  const ufs2Blockers = blockersFor(byId, ['ufs2tool']);
+  // Python only shows up in the report when MkPFS itself is missing, so it is
+  // listed as a blocker only when the report actually mentions it.
+  const ffpfscBlockers = blockersFor(byId, byId.has('python') ? ['mkpfs', 'python'] : ['mkpfs']);
+  const exfatBlockers = blockersFor(byId, exfatIds(env));
+
+  return [
+    { id: 'ufs2', label: 'UFS2 images', ext: '.ffpkg', ok: ufs2Blockers.length === 0, blockers: ufs2Blockers },
+    { id: 'ffpfsc', label: 'Compressed PFS', ext: '.ffpfsc', ok: ffpfscBlockers.length === 0, blockers: ffpfscBlockers },
+    { id: 'exfat', label: 'exFAT images', ext: '.exfat', ok: exfatBlockers.length === 0, blockers: exfatBlockers },
+  ];
+}
+
+function blockersFor(byId: Map<string, ToolCheck>, ids: string[]): string[] {
+  return ids
+    .filter((id) => {
+      const tool = byId.get(id);
+      return !tool || !tool.found;
+    })
+    .map((id) => byId.get(id)?.label ?? id);
+}
+
+function exfatIds(env: EnvReport | null): string[] {
+  if (!env || (!env.isLinux && !env.isWindows)) return ['repo'];
+  if (env.isLinux) return ['repo', 'mkfs.exfat', 'mount.exfat-fuse', 'rsync'];
+  return ['repo', 'osfmount', 'powershell'];
+}
+
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 5) return 'Working late';
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function CreateTileIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M8 5.5v5M5.5 8h5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function VerifyTileIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M8 2.2l4.6 1.7v3.3c0 2.9-1.9 5.1-4.6 6.1-2.7-1-4.6-3.2-4.6-6.1V3.9L8 2.2z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M5.9 8l1.5 1.5 2.8-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SendTileIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M2 8l12-5.5L9.5 14 8 9.5 2 8z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function GuideTileIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M3 2.5h7.5L13 5v8.5H3z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M5.5 6.5h5M5.5 9h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
 }
