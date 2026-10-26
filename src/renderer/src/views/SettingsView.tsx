@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { useEffect, useState } from 'react';
-import type { AppInfo, AppSettings, EnvReport, ThemeMode, ToolEvent, UpdateCheckResult } from '../../../shared/types';
+import type { AppInfo, AppSettings, EnvReport, ThemeMode, ToolCheck, ToolEvent, UpdateCheckResult } from '../../../shared/types';
 import { smp } from '../lib/api';
 import { Segmented } from '../components/Segmented';
 import { PathField } from '../components/PathField';
@@ -159,6 +159,15 @@ export function SettingsView(props: {
           onOverride={(value) => props.onChange({ toolPaths: { ...settings.toolPaths, ufs2tool: value } })}
           onDownload={() => download('ufs2tool')}
         />
+        <div className="tool-row sys-tools">
+          <div className="tool-row-head">
+            <span className="tool-name">System requirements</span>
+            <span className="tool-detail">not managed by the toolbox</span>
+          </div>
+          {systemChecks(env).map((check) => (
+            <SystemToolRow key={check.id} check={check} />
+          ))}
+        </div>
       </div>
 
       {env?.isLinux && (
@@ -280,6 +289,28 @@ function UpdateStatus(props: { result: UpdateCheckResult }) {
     return <span className="update-status">No releases have been published yet</span>;
   }
   return <span className="error-text">{result.message ?? 'The update check failed'}</span>;
+}
+
+function SystemToolRow(props: { check: ToolCheck }) {
+  const { check } = props;
+  const detail = check.found ? (check.path ?? 'found') : 'not found';
+  return (
+    <div className="sys-tool-row">
+      <StatusDot ok={check.found} />
+      <span className="sys-tool-name">{check.label}</span>
+      <span className="tool-detail mono">{detail}</span>
+      {!check.found && check.fix && <span className="field-hint">{check.fix}</span>}
+    </div>
+  );
+}
+
+/** Platform-specific tools that cannot be downloaded through the toolbox. */
+function systemChecks(env: EnvReport | null): ToolCheck[] {
+  if (!env) return [];
+  const ids = env.isWindows ? ['osfmount', 'powershell'] : ['mkfs.exfat', 'mount.exfat-fuse', 'rsync'];
+  return ids
+    .map((id) => env.tools.find((tool) => tool.id === id))
+    .filter((tool): tool is ToolCheck => Boolean(tool));
 }
 
 function ToolRow(props: {

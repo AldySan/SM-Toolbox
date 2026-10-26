@@ -231,7 +231,7 @@ export async function detectEnvironment(settings: AppSettings): Promise<EnvRepor
     requiredFor: ['exfat', 'ffpfsc'],
     found: repo.ok,
     detail: repo.ok ? repo.repoPath : repo.detail,
-    fix: 'Clone the repository and point Settings to it.',
+    fix: 'Needed only for exFAT-based images (the builder scripts ship with the repository). Clone it and point Settings to the checkout.',
   });
 
   if (IS_LINUX) {

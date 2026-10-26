@@ -1124,6 +1124,33 @@ input::placeholder {
   gap: 10px;
 }
 
+/* System requirements block inside the Tools card: read-only checks for
+   platform tools the toolbox detects but cannot download itself. */
+.sys-tools {
+  border-top: 1px dashed var(--border);
+  margin-top: 6px;
+  padding-top: 14px;
+}
+
+.sys-tool-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 4px 0;
+}
+
+.sys-tool-row .sys-tool-name {
+  font-size: 12.5px;
+  font-weight: 500;
+  flex: none;
+}
+
+.sys-tool-row .field-hint {
+  flex-basis: 100%;
+  margin: 0 0 6px 18px;
+}
+
 .tool-name {
   font-weight: 600;
   flex: none;
