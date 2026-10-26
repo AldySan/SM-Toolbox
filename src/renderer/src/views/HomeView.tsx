@@ -44,11 +44,6 @@ export function HomeView(props: {
             </button>
           </div>
           <ul className="env-list">
-            <li>
-              <StatusDot ok={Boolean(env?.repoOk)} />
-              <span className="env-label">ShadowMountPlus checkout</span>
-              <span className="env-detail mono">{env?.repoOk ? env.repoPath : (env?.repoDetail ?? 'checking…')}</span>
-            </li>
             {relevantTools.map((tool) => (
               <li key={tool.id}>
                 <StatusDot ok={tool.found} />
@@ -61,7 +56,8 @@ export function HomeView(props: {
           </ul>
           {env && env.tools.some((tool) => !tool.found) && (
             <p className="field-hint">
-              Missing pieces can be installed from Settings.{' '}
+              Not everything is required: the checkout and exFAT tools matter only for exFAT images, MkPFS only for
+              compressed PFS, UFS2Tool only for UFS2. Missing pieces with a fix note can be set up from{' '}
               <a
                 href=""
                 onClick={(event) => {
@@ -69,8 +65,9 @@ export function HomeView(props: {
                   props.onNavigate('settings');
                 }}
               >
-                Open Settings
+                Settings
               </a>
+              .
             </p>
           )}
         </div>
