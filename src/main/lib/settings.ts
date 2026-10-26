@@ -12,6 +12,7 @@ const DEFAULTS: AppSettings = {
   privilege: 'auto',
   defaultOutDir: '',
   autoCheckUpdates: true,
+  sidebarCollapsed: false,
   ps5: { host: '', port: 9021 },
   recentHosts: [],
 };

@@ -35,6 +35,8 @@ export interface AppSettings {
   defaultOutDir: string;
   /** Check GitHub for a newer release shortly after launch. */
   autoCheckUpdates: boolean;
+  /** Icon-only sidebar; persisted so it survives restarts. */
+  sidebarCollapsed: boolean;
   ps5: {
     host: string;
     port: number;
