@@ -169,6 +169,56 @@ describe('ffpfsc steps', () => {
   });
 });
 
+describe('post-build steps', () => {
+  it('appends a recursive delete-source step after every build step', () => {
+    const steps = buildSteps(
+      { format: 'ufs2', sourceDir: '/games/APP', outputFile: '/out/x.ffpkg', deleteSourceAfterSuccess: true },
+      linuxCtx(),
+    );
+    expect(steps.map((step) => step.kind)).toEqual(['shell', 'unlink']);
+    const last = steps[1];
+    if (last.kind !== 'unlink') throw new Error('expected unlink step');
+    expect(last.target).toBe('/games/APP');
+    expect(last.recursive).toBe(true);
+    expect(last.command).toContain('rm -r');
+  });
+
+  it('deletes the source after the intermediate cleanup for ffpfsc builds', () => {
+    const steps = buildSteps(
+      {
+        format: 'ffpfsc',
+        sourceDir: '/games/APP',
+        outputFile: '/out/x.ffpfsc',
+        innerFormat: 'exfat',
+        deleteSourceAfterSuccess: true,
+      },
+      linuxCtx(),
+    );
+    expect(steps.map((step) => step.kind)).toEqual(['shell', 'shell', 'unlink', 'unlink']);
+    const sourceStep = steps[3];
+    if (sourceStep.kind !== 'unlink') throw new Error('expected unlink step');
+    expect(sourceStep.target).toBe('/games/APP');
+    expect(sourceStep.recursive).toBe(true);
+    // The intermediate cleanup stays non-recursive.
+    const intermediateStep = steps[2];
+    if (intermediateStep.kind !== 'unlink') throw new Error('expected unlink step');
+    expect(intermediateStep.recursive).toBeUndefined();
+  });
+
+  it('adds no delete step by default', () => {
+    const steps = buildSteps({ format: 'ufs2', sourceDir: '/games/APP', outputFile: '/out/x.ffpkg' }, linuxCtx());
+    expect(steps.some((step) => step.kind === 'unlink' && step.recursive)).toBe(false);
+  });
+
+  it('auto-verify never changes the step list', () => {
+    const steps = buildSteps(
+      { format: 'ufs2', sourceDir: '/games/APP', outputFile: '/out/x.ffpkg', autoVerify: true },
+      linuxCtx(),
+    );
+    expect(steps).toHaveLength(1);
+  });
+});
+
 describe('preview and titles', () => {
   it('describes every step', () => {
     const steps = buildSteps(

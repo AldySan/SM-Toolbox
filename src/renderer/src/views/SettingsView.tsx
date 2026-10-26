@@ -34,6 +34,7 @@ export function SettingsView(props: {
   onRefreshEnv: () => void;
 }) {
   const { settings, appInfo, env, updateInfo } = props;
+  const onRefreshEnv = props.onRefreshEnv;
   const [progress, setProgress] = useState<Partial<Record<ToolId, ToolProgress>>>({});
   const [busy, setBusy] = useState<Partial<Record<ToolId, boolean>>>({});
   const [toolError, setToolError] = useState<Partial<Record<ToolId, string>>>({});
@@ -75,12 +76,14 @@ export function SettingsView(props: {
             delete next[tool];
             return next;
           });
-          props.onRefreshEnv();
+          onRefreshEnv();
         }
       }
     });
     return unsubscribe;
-  }, [props]);
+    // Only the env-refresh callback matters here; depending on the whole
+    // props object would re-subscribe the listener on every parent render.
+  }, [onRefreshEnv]);
 
   if (!settings) {
     return (

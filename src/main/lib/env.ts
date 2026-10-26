@@ -154,16 +154,15 @@ function isWhlDir(dir: string): boolean {
 }
 
 export function resolveTools(settings: AppSettings): ResolvedTools {
-  // MkPFS: manual override > console script on PATH > bundled whl via Python.
+  // Both tools use the same precedence: manual override > copy downloaded
+  // through the toolbox > system PATH. A toolbox download must win over a
+  // stale PATH copy — otherwise "Download latest" would appear to do nothing
+  // whenever the tool also exists on the PATH.
   // Overrides must point at an executable file; a directory or a stale path
   // would otherwise surface later as a confusing "Failed to start" spawn error.
   if (settings.toolPaths.mkpfs && isExecutable(settings.toolPaths.mkpfs)) {
     const mkpfs: ToolInvocation = { cmd: settings.toolPaths.mkpfs, prefix: [], display: 'mkpfs', origin: 'override' };
     return { mkpfs, ufs2tool: resolveUfs2Tool(settings) };
-  }
-  const onPath = findExecutable('mkpfs');
-  if (onPath) {
-    return { mkpfs: { cmd: onPath, prefix: [], display: 'mkpfs', origin: 'path' }, ufs2tool: resolveUfs2Tool(settings) };
   }
   const cached = settings.toolCache.mkpfs;
   if (cached && isWhlDir(cached)) {
@@ -171,6 +170,10 @@ export function resolveTools(settings: AppSettings): ResolvedTools {
     if (python) {
       return { mkpfs: pythonModuleInvocation(python, cached), ufs2tool: resolveUfs2Tool(settings) };
     }
+  }
+  const onPath = findExecutable('mkpfs');
+  if (onPath) {
+    return { mkpfs: { cmd: onPath, prefix: [], display: 'mkpfs', origin: 'path' }, ufs2tool: resolveUfs2Tool(settings) };
   }
   return { mkpfs: MISSING('mkpfs'), ufs2tool: resolveUfs2Tool(settings) };
 }
@@ -199,12 +202,23 @@ export async function detectEnvironment(
   const tools: ToolCheck[] = [];
   const resolved = resolveTools(settings);
 
+  // The version banners spawn one probe process per tool; running them
+  // concurrently halves the time the Home view spends "detecting".
+  const mkpfsProbe =
+    resolved.mkpfs.origin !== 'missing'
+      ? runCapture(resolved.mkpfs.cmd, [...resolved.mkpfs.prefix, '-V'], 10000, resolved.mkpfs.env)
+      : Promise.resolve(undefined);
+  const ufs2Probe =
+    resolved.ufs2tool.origin !== 'missing'
+      ? runCapture(resolved.ufs2tool.cmd, [], 10000, resolved.ufs2tool.env)
+      : Promise.resolve(undefined);
+  const [mkpfsVersion, ufs2Banner] = await Promise.all([mkpfsProbe, ufs2Probe]);
+
   if (resolved.mkpfs.origin !== 'missing') {
-    const version = await runCapture(resolved.mkpfs.cmd, [...resolved.mkpfs.prefix, '-V'], 10000, resolved.mkpfs.env);
     tools.push(
       tool('mkpfs', 'MkPFS', ['ffpfsc'], true, {
         path: resolved.mkpfs.display,
-        version,
+        version: mkpfsVersion,
         detail: resolved.mkpfs.origin === 'bundled-whl' ? 'bundled wheel via Python' : undefined,
       }),
     );
@@ -217,8 +231,7 @@ export async function detectEnvironment(
   }
 
   if (resolved.ufs2tool.origin !== 'missing') {
-    const banner = await runCapture(resolved.ufs2tool.cmd, [], 10000, resolved.ufs2tool.env);
-    tools.push(tool('ufs2tool', 'UFS2Tool', ['ufs2'], true, { path: resolved.ufs2tool.cmd, version: banner }));
+    tools.push(tool('ufs2tool', 'UFS2Tool', ['ufs2'], true, { path: resolved.ufs2tool.cmd, version: ufs2Banner }));
   } else {
     tools.push(
       tool('ufs2tool', 'UFS2Tool', ['ufs2'], false, {

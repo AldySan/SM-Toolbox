@@ -47,6 +47,7 @@ export function CreateView(props: {
   env: EnvReport | null;
   queue: QueueSnapshot;
   onEnqueue: (spec: BuildSpec) => Promise<void>;
+  onChange: (patch: Partial<AppSettings>) => void;
 }) {
   const [format, setFormat] = useState<ImageFormat>('ufs2');
   const [sourceDir, setSourceDir] = useState('');
@@ -60,6 +61,10 @@ export function CreateView(props: {
   const [error, setError] = useState<string | null>(null);
 
   const isWindows = props.env?.isWindows ?? false;
+  // Post-build options are write-through settings: they persist across
+  // restarts and survive view switches without local state to reconcile.
+  const autoVerify = props.settings?.createDefaults.autoVerify ?? true;
+  const deleteSource = props.settings?.createDefaults.deleteSource ?? false;
 
   useEffect(() => {
     let cancelled = false;
@@ -88,8 +93,10 @@ export function CreateView(props: {
       inodeDensity: format === 'ufs2' ? inodeDensity : undefined,
       label: format === 'exfat' && isWindows && label ? label : undefined,
       keepIntermediate: format === 'ffpfsc' ? keepIntermediate : undefined,
+      autoVerify,
+      deleteSourceAfterSuccess: deleteSource,
     };
-  }, [format, sourceDir, outputFile, innerFormat, inodeDensity, label, keepIntermediate, isWindows]);
+  }, [format, sourceDir, outputFile, innerFormat, inodeDensity, label, keepIntermediate, isWindows, autoVerify, deleteSource]);
 
   useEffect(() => {
     if (!spec) {
@@ -136,6 +143,9 @@ export function CreateView(props: {
   }
   if (folderStat?.exists && (!folderStat.ebootBin || !folderStat.paramJson)) {
     blockers.push('Source folder must contain eboot.bin and sce_sys/param.json at its root.');
+  }
+  if (sourceDir && outputFile && isInside(outputFile, sourceDir)) {
+    blockers.push('The output image must live outside the source folder — pick a different output location.');
   }
 
   const run = async () => {
@@ -264,6 +274,42 @@ export function CreateView(props: {
           </>
         )}
 
+        <div className="field">
+          <label>After a successful build</label>
+          <div className="postbuild-toggles">
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={autoVerify}
+                onChange={(event) =>
+                  props.onChange({ createDefaults: { autoVerify: event.target.checked, deleteSource } })
+                }
+              />
+              Verify the output image
+            </label>
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={deleteSource}
+                onChange={(event) =>
+                  props.onChange({ createDefaults: { autoVerify, deleteSource: event.target.checked } })
+                }
+              />
+              Delete the source folder
+            </label>
+          </div>
+          <div className="field-hint">
+            Verification reads the finished image header and prints the report in the build output. Both options only
+            run after every build step succeeded — a failed or cancelled build leaves the source folder untouched.
+          </div>
+          {deleteSource && (
+            <Callout tone="warn" title="Source folder will be deleted">
+              Once the image is built successfully, <span className="mono">{sourceDir || 'the source folder'}</span> is
+              deleted permanently. Only enable this on dump copies you can afford to lose.
+            </Callout>
+          )}
+        </div>
+
         {props.env?.isLinux && (format === 'exfat' || (format === 'ffpfsc' && innerFormat === 'exfat')) && (
           <Callout tone="info" title="Privileges">
             The exFAT builder mounts a loop device, which requires root. When pkexec is available the toolbox raises the
@@ -320,4 +366,12 @@ export function CreateView(props: {
 
 function joinPath(dir: string, name: string): string {
   return dir.endsWith('/') || dir.endsWith('\\') ? dir + name : `${dir}/${name}`;
+}
+
+/** True when `output` lands inside the `source` directory (both may be relative). */
+function isInside(output: string, source: string): boolean {
+  const normalize = (value: string) => value.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+  const out = normalize(output);
+  const src = normalize(source);
+  return out === src || out.startsWith(`${src}/`);
 }
