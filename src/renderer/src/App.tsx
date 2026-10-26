@@ -117,23 +117,31 @@ export function App() {
   );
 
   return (
-    <div className="app">
+    <div className={`app${settings?.sidebarCollapsed ? ' app-nav-collapsed' : ''}`}>
       <div className="app-main">
         <Sidebar
           items={navItems()}
           active={view}
           onSelect={setView}
+          collapsed={settings?.sidebarCollapsed ?? false}
+          onToggleCollapsed={() => updateSettings({ sidebarCollapsed: !(settings?.sidebarCollapsed ?? false) })}
           footer={
             <>
-              <span>{appInfo ? `${appInfo.platform} · v${appInfo.version}` : ''}</span>
+              <span className="sidebar-foot-line">{appInfo ? `${appInfo.platform} · v${appInfo.version}` : ''}</span>
               {updateInfo?.status === 'available' && updateInfo.releaseUrl && (
                 <a
-                  className="update-badge"
+                  className={settings?.sidebarCollapsed ? 'update-badge dot-only' : 'update-badge'}
                   href={updateInfo.releaseUrl}
                   title={`Version ${updateInfo.latestVersion} is available — open the release page`}
                 >
-                  <span className="update-dot" aria-hidden="true" />
-                  Update available
+                  {settings?.sidebarCollapsed ? (
+                    <span className="update-dot" aria-hidden="true" />
+                  ) : (
+                    <>
+                      <span className="update-dot" aria-hidden="true" />
+                      Update available
+                    </>
+                  )}
                 </a>
               )}
             </>
