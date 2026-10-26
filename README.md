@@ -20,13 +20,13 @@ SM+ Toolbox supports all three image formats used by ShadowMountPlus:
 - **exFAT (`.exfat`)** — create exFAT images using the documented filesystem profile.
 - **Compressed PFS (`.ffpfsc`)** — package game files into compressed PFS containers using MkPFS.
 
-Need to prepare more than one image? Add them to the build queue and let the app process them in order. Each build starts automatically when the previous one finishes.
+Need to prepare more than one image? Add them to the build queue and let the app process them in order. Each build starts automatically when the previous one finishes. After a successful build, the app can also verify the finished image and clean up the source folder for you — both options only run once every build step has succeeded.
 
 ### Verify images before using them
 
-The verification view checks an image's filesystem signatures, file extension, and other relevant details. It can also inspect images using UFS2Tool and MkPFS to help catch problems before you transfer them to your console.
+Queue any number of images and check what each file actually contains: filesystem signatures, file extension, cluster size, and 64 KiB alignment are inspected as soon as a file is queued, with a clear verdict per image. Anything suspicious can be inspected further using UFS2Tool and MkPFS, so problems surface before the files ever reach your console.
 
-![Verify view](docs/screenshots/verify.png)
+![Verify view with the batch queue and per-file verdicts](docs/screenshots/verify.png)
 
 ### Send payloads to your console
 
@@ -48,7 +48,7 @@ Installation instructions, usage notes, and troubleshooting information from the
 
 One thing worth noting: **commands aren't hidden behind the UI.** Before execution, the app previews the commands it will run, and the terminal panel shows the tools, arguments, and output as each step progresses.
 
-![Create view with command preview](docs/screenshots/create.png)
+![Create view with post-build options and command preview](docs/screenshots/create.png)
 
 ## Requirements
 
@@ -186,7 +186,7 @@ A few conventions used in this repository:
 - **Commit messages:** follow Conventional Commits.
 - **Pull requests:** target `dev`; `main` tracks releases.
 - **CI:** `.github/workflows/build.yml` builds and smoke-tests the app on `ubuntu-latest` and `windows-latest` for pushes and pull requests. Tagged releases matching `v*` also receive Windows and Linux distributables.
-- **Tests:** run with Vitest via `npm test`. The suite covers build recipes, image detection, the queue state machine, semantic-version comparison, and the one-click setup planner. These tests don't require network access or an Electron runtime.
+- **Tests:** run with Vitest via `npm test`. The suite covers build recipes, image detection, the build and verification queue state machines, semantic-version comparison, and the one-click setup planner. These tests don't require network access or an Electron runtime.
 
 ## Contributing
 
