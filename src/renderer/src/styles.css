@@ -613,8 +613,19 @@ input::placeholder {
   border-left-width: 3px;
   border-radius: var(--radius-sm);
   padding: 10px 14px;
+  margin-top: 14px;
   margin-bottom: 14px;
   background: var(--bg-inset);
+}
+
+/* The blocks callouts follow already end in their own bottom margin —
+   only add the top gap after rows that do not (run-row, hints, lists). */
+.callout:first-child,
+.view-head + .callout,
+.field + .callout,
+.card + .callout,
+.callout + .callout {
+  margin-top: 0;
 }
 
 .callout:last-child {

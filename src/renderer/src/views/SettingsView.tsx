@@ -16,6 +16,7 @@ import { PathField } from '../components/PathField';
 import { StatusDot } from '../components/StatusDot';
 
 type ToolId = 'mkpfs' | 'ufs2tool';
+type UpdateKey = ToolId | 'builders';
 
 interface ToolProgress {
   text: string;
@@ -38,7 +39,7 @@ export function SettingsView(props: {
   const [toolError, setToolError] = useState<Partial<Record<ToolId, string>>>({});
   const [checking, setChecking] = useState(false);
   const [checkingUpdates, setCheckingUpdates] = useState(false);
-  const [toolUpdates, setToolUpdates] = useState<Partial<Record<ToolId, ToolUpdateCheck>> | null>(null);
+  const [toolUpdates, setToolUpdates] = useState<Partial<Record<UpdateKey, ToolUpdateCheck>> | null>(null);
 
   useEffect(() => {
     const unsubscribe = smp.onToolEvent((event: ToolEvent) => {
@@ -120,7 +121,7 @@ export function SettingsView(props: {
     void smp.tools
       .checkUpdates()
       .then((results) => {
-        const map: Partial<Record<ToolId, ToolUpdateCheck>> = {};
+        const map: Partial<Record<UpdateKey, ToolUpdateCheck>> = {};
         for (const result of results) map[result.tool] = result;
         setToolUpdates(map);
       })
@@ -150,23 +151,6 @@ export function SettingsView(props: {
             ariaLabel="Theme"
           />
         </div>
-      </div>
-
-      <div className="card">
-        <h2>ShadowMountPlus repository</h2>
-        <PathField
-          label="Local checkout (optional)"
-          value={settings.repoPath}
-          kind="folder"
-          dialogTitle="Select your ShadowMountPlus checkout"
-          placeholder="Leave empty to use the bundled builder scripts"
-          onChange={(repoPath) => props.onChange({ repoPath })}
-          hint={
-            env?.repoOrigin === 'bundled'
-              ? 'Currently using the builder scripts bundled with the toolbox. Point this at a ShadowMountPlus checkout to run your own copy of them instead.'
-              : 'When set, the image-builder scripts inside the checkout are used instead of the bundled copies — handy for testing upstream changes.'
-          }
-        />
       </div>
 
       <div className="card">
@@ -201,6 +185,12 @@ export function SettingsView(props: {
           update={toolUpdates?.ufs2tool}
           onOverride={(value) => props.onChange({ toolPaths: { ...settings.toolPaths, ufs2tool: value } })}
           onDownload={() => download('ufs2tool')}
+        />
+        <BuildersRow
+          check={env?.tools.find((candidate) => candidate.id === 'builders')}
+          origin={env?.repoOrigin}
+          update={toolUpdates?.builders}
+          onRefreshEnv={props.onRefreshEnv}
         />
         <div className="tool-row sys-tools">
           <div className="tool-row-head">
@@ -312,6 +302,86 @@ export function SettingsView(props: {
           <a href="https://github.com/drakmor/ShadowMountPlus">ShadowMountPlus</a>
         </p>
       </div>
+    </div>
+  );
+}
+
+/** exFAT builder scripts — fetched straight from the ShadowMountPlus repo, bundled copies as fallback. */
+function BuildersRow(props: {
+  check?: { found: boolean; detail?: string };
+  origin?: 'downloaded' | 'bundled' | 'missing';
+  update?: ToolUpdateCheck;
+  onRefreshEnv: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchLatest = () => {
+    setBusy(true);
+    setError(null);
+    void smp.builders
+      .fetch()
+      .then((result) => {
+        if (!result.ok && result.error) setError(result.error);
+        else props.onRefreshEnv();
+      })
+      .catch(() => undefined)
+      .finally(() => setBusy(false));
+  };
+
+  const useBundled = () => {
+    setBusy(true);
+    setError(null);
+    void smp.builders
+      .reset()
+      .then((result) => {
+        if (!result.ok && result.error) setError(result.error);
+        else props.onRefreshEnv();
+      })
+      .catch(() => undefined)
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="tool-row">
+      <div className="tool-row-head">
+        <StatusDot ok={Boolean(props.check?.found)} />
+        <span className="tool-name">exFAT builder scripts</span>
+        <span className="tool-detail mono">
+          {props.check?.found ? (props.check.detail ?? 'in use') : 'not found'}
+        </span>
+        <button type="button" className="btn btn-small" disabled={busy} onClick={fetchLatest}>
+          {busy ? 'Fetching…' : 'Fetch latest'}
+        </button>
+        {props.origin === 'downloaded' && (
+          <button type="button" className="btn btn-small" disabled={busy} onClick={useBundled}>
+            Use bundled
+          </button>
+        )}
+      </div>
+      {props.update && (
+        <div className={`tool-update${props.update.updateAvailable ? ' available' : ''}`}>
+          {props.update.updateAvailable ? (
+            <>
+              <span className="mono">
+                scripts @{props.update.current ?? '?'} → @{props.update.latest}
+              </span>
+              <button type="button" className="btn btn-small" disabled={busy} onClick={fetchLatest}>
+                Update
+              </button>
+            </>
+          ) : (
+            <span className="field-hint">
+              {props.update.message ?? `Up to date (scripts @${props.update.current})`}
+            </span>
+          )}
+        </div>
+      )}
+      <div className="field-hint">
+        mkexfat.sh and New-OsfExfatImage.ps1 are fetched straight from the ShadowMountPlus repository — no checkout
+        needed. The toolbox bundles its own copies and falls back to them.
+      </div>
+      {error && <div className="field-hint error-text">{error}</div>}
     </div>
   );
 }

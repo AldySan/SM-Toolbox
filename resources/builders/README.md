@@ -11,5 +11,7 @@ toolbox can build exFAT-based images without a local checkout.
 
 Pinned upstream commit: see `.upstream-sha`.
 
-A local ShadowMountPlus checkout configured in Settings overrides these
-copies, so testing upstream changes still works without rebuilding the app.
+A copy fetched through Settings → Tools ("Fetch latest") overrides these
+bundled files — the toolbox downloads just the two scripts from the
+ShadowMountPlus repository, never a full checkout. "Use bundled" removes
+the fetched copy again.

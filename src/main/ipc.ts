@@ -6,11 +6,12 @@ import path from 'node:path';
 import { IPC } from '../shared/ipc-channels';
 import type { BuildSpec, JobEvent, SendEvent, ToolEvent, ToolUpdateCheck } from '../shared/types';
 import { loadSettings, saveSettings } from './lib/settings';
-import { detectEnvironment, findExecutable, repoScripts, resolveTools } from './lib/env';
+import { detectEnvironment, findExecutable, builderScripts, resolveTools } from './lib/env';
 import { buildSteps, jobTitle, stepsToPreview } from './lib/recipes';
 import { runJob, RunningJob } from './lib/runner';
 import { detectImage, statFolder } from './lib/verifier';
 import { downloadTool, listAssets } from './lib/toolmanager';
+import { fetchBuilders, localBuildersVersion, resetBuilders, shortVersion, upstreamBuildersVersion } from './lib/builders';
 import { ensurePayload, sendPayload } from './lib/payload';
 import { checkForUpdates } from './lib/updater';
 import { installedTags, planSetup, shouldUpdate, type ManagedTool, type SetupSummary } from './lib/setup';
@@ -28,6 +29,11 @@ function bundledBuildersDir(): string {
   return app.isPackaged
     ? path.join(process.resourcesPath, 'builders')
     : path.join(app.getAppPath(), 'resources', 'builders');
+}
+
+/** Directory builder scripts fetched through Settings → Tools land in. */
+function downloadedBuildersDir(): string {
+  return path.join(app.getPath('userData'), 'builders');
 }
 
 const asString = (value: unknown): string => (typeof value === 'string' ? value : '');
@@ -54,9 +60,9 @@ function prepareSpec(raw: unknown): BuildSpec {
   const resolved = resolveTools(settings);
 
   if (spec.format === 'exfat' || (spec.format === 'ffpfsc' && (spec.innerFormat ?? 'exfat') === 'exfat')) {
-    if (!repoScripts(settings, bundledBuildersDir()).ok) {
+    if (!builderScripts(downloadedBuildersDir(), bundledBuildersDir()).ok) {
       throw new Error(
-        'No exFAT builder script available. Set the ShadowMountPlus checkout in Settings, or reinstall the toolbox (it ships its own copy).',
+        'No exFAT builder script available. Fetch the scripts from Settings → Tools, or reinstall the toolbox (it ships its own copy).',
       );
     }
   }
@@ -78,7 +84,7 @@ function stepContext(spec: BuildSpec, sourceFileCount: number) {
   const resolved = resolveTools(settings);
   return {
     isWindows: IS_WINDOWS,
-    buildersDir: repoScripts(settings, bundledBuildersDir()).dir,
+    buildersDir: builderScripts(downloadedBuildersDir(), bundledBuildersDir()).dir,
     mkpfs: resolved.mkpfs,
     ufs2tool: resolved.ufs2tool,
     sourceFileCount,
@@ -163,7 +169,9 @@ export function registerIpc(): void {
     clipboard.writeText(asString(text));
   });
 
-  ipcMain.handle(IPC.EnvDetect, async () => detectEnvironment(loadSettings(), bundledBuildersDir()));
+  ipcMain.handle(IPC.EnvDetect, async () =>
+    detectEnvironment(loadSettings(), downloadedBuildersDir(), bundledBuildersDir()),
+  );
 
   ipcMain.handle(IPC.FolderStat, (_event, target) => statFolder(asString(target)));
   ipcMain.handle(IPC.JobPreview, (_event, raw) => {
@@ -262,6 +270,35 @@ export function registerIpc(): void {
         });
       }
     }
+
+    // Builder scripts: compare the fingerprint of the copy actually in use
+    // (fetched or bundled) against the published upstream pair. Content
+    // comparison means unrelated upstream commits never look like updates.
+    try {
+      const active = builderScripts(downloadedBuildersDir(), bundledBuildersDir());
+      const current = active.ok ? localBuildersVersion(active.dir) : undefined;
+      if (!current) {
+        results.push({
+          tool: 'builders',
+          updateAvailable: false,
+          message: 'No builder scripts in use — fetch them below.',
+        });
+      } else {
+        const latest = await upstreamBuildersVersion();
+        results.push({
+          tool: 'builders',
+          current: shortVersion(current),
+          latest: shortVersion(latest),
+          updateAvailable: current !== latest,
+        });
+      }
+    } catch (error) {
+      results.push({
+        tool: 'builders',
+        updateAvailable: false,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
     return results;
   });
 
@@ -317,6 +354,31 @@ export function registerIpc(): void {
       }
     }
     return summary;
+  });
+
+  /* ---------- builder scripts ---------- */
+
+  // Fetch just the two exFAT builder scripts from the ShadowMountPlus
+  // repository — no checkout, no clone. The bundled copies remain the
+  // fallback, so a failed fetch never breaks image building.
+  ipcMain.handle(IPC.BuildersFetch, async () => {
+    try {
+      const result = await fetchBuilders(downloadedBuildersDir());
+      saveSettings({ buildersVersion: result.version });
+      return { ok: true, version: result.version };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle(IPC.BuildersReset, () => {
+    try {
+      resetBuilders(downloadedBuildersDir());
+      saveSettings({ buildersVersion: '' });
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
   });
 
   /* ---------- verification ---------- */

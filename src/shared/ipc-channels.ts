@@ -25,6 +25,8 @@ export const IPC = {
   ToolListAssets: 'tools:list-assets',
   ToolCheckUpdates: 'tools:check-updates',
   SetupRun: 'setup:run',
+  BuildersFetch: 'builders:fetch',
+  BuildersReset: 'builders:reset',
   PayloadDownload: 'tools:download-payload',
   SendPayload: 'send:payload',
   SendCancel: 'send:cancel',
