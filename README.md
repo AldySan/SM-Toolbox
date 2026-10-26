@@ -121,6 +121,8 @@ There's also a headless smoke test for checking that the packaged app can start,
 
 This is the same basic check used by CI on every commit.
 
+`npm install` may print three deprecation warnings — `glob@7`, `inflight@1`, `rimraf@2` — pulled in transitively by Electron's own packaging tools (`electron-winstaller`, `electron-installer-common`, both already at their latest versions). They are build-time-only dependencies, nothing deprecated ships inside the app, and the newer majors of those packages drop callback-style APIs those tools still require, so overriding them would break the Windows installer and the deb/rpm makers. Every Electron Forge project that ships those installers sees the same lines.
+
 ## How it's built
 
 SM+ Toolbox uses Electron, with a separate main process and renderer process. The main process handles filesystem access, external tools, build execution, and other privileged operations. The renderer is a React application that communicates with it through a limited preload API.

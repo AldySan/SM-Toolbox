@@ -45,5 +45,8 @@
   "bugs": {
     "url": "https://github.com/AldySan/SM-Toolbox/issues"
   },
-  "homepage": "https://github.com/AldySan/SM-Toolbox#readme"
+  "homepage": "https://github.com/AldySan/SM-Toolbox#readme",
+  "allowScripts": {
+    "electron-winstaller@5.4.4": true
+  }
 }
