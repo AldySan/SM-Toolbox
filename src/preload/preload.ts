@@ -53,6 +53,10 @@ const api: SmpApi = {
   setup: {
     run: () => ipcRenderer.invoke(IPC.SetupRun),
   },
+  builders: {
+    fetch: () => ipcRenderer.invoke(IPC.BuildersFetch),
+    reset: () => ipcRenderer.invoke(IPC.BuildersReset),
+  },
   send: {
     payload: (opts) => ipcRenderer.invoke(IPC.SendPayload, opts),
     cancel: (sendId) => ipcRenderer.invoke(IPC.SendCancel, sendId),

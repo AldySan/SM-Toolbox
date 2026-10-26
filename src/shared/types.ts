@@ -20,8 +20,8 @@ export interface FileFilter {
 
 export interface AppSettings {
   theme: ThemeMode;
-  /** Optional local ShadowMountPlus checkout; its builder scripts override the bundled copies. */
-  repoPath: string;
+  /** Content fingerprint of the builder scripts fetched through Tools; '' = bundled copies in use. */
+  buildersVersion: string;
   toolPaths: {
     mkpfs: string;
     ufs2tool: string;
@@ -74,7 +74,7 @@ export interface SetupSummary {
 }
 
 export interface ToolUpdateCheck {
-  tool: 'mkpfs' | 'ufs2tool';
+  tool: 'mkpfs' | 'ufs2tool' | 'builders';
   current?: string;
   latest?: string;
   updateAvailable: boolean;
@@ -96,11 +96,9 @@ export interface EnvReport {
   platform: string;
   isWindows: boolean;
   isLinux: boolean;
-  repoPath: string;
   repoOk: boolean;
   /** Where the exFAT builder scripts will actually run from. */
-  repoOrigin: 'checkout' | 'bundled' | 'missing';
-  repoDetail?: string;
+  repoOrigin: 'downloaded' | 'bundled' | 'missing';
   tools: ToolCheck[];
   privilege: {
     mode: PrivilegeMode;
@@ -254,6 +252,12 @@ export interface SmpApi {
   };
   setup: {
     run(): Promise<SetupSummary>;
+  };
+  builders: {
+    /** Fetch the latest builder scripts from the ShadowMountPlus repository. */
+    fetch(): Promise<{ ok: boolean; version?: string; error?: string }>;
+    /** Drop the fetched scripts and fall back to the bundled copies. */
+    reset(): Promise<{ ok: boolean; error?: string }>;
   };
   send: {
     payload(opts: { host: string; port: number; elfPath: string }): Promise<{ sendId: string }>;

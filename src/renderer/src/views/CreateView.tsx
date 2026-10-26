@@ -129,7 +129,7 @@ export function CreateView(props: {
   if (format === 'ufs2' && missingTool('ufs2tool')) blockers.push('UFS2Tool is missing — download it from Settings, Tools.');
   if (format === 'ffpfsc' && missingTool('mkpfs')) blockers.push('MkPFS is missing — download it from Settings, Tools.');
   if ((format === 'exfat' || (format === 'ffpfsc' && innerFormat === 'exfat')) && props.env && !props.env.repoOk) {
-    blockers.push('No exFAT builder script available — the bundled copy is missing and no checkout is configured. Reinstall the toolbox or set the checkout in Settings.');
+    blockers.push('No exFAT builder script available — the bundled copy is missing. Reinstall the toolbox, or fetch the scripts from Settings → Tools.');
   }
   if (format === 'exfat' && isWindows && missingTool('osfmount')) {
     blockers.push('OSFMount is missing — install it from osforensics.com (needed by the Windows exFAT builder).');

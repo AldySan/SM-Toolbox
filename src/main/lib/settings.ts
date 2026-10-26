@@ -6,7 +6,7 @@ import type { AppSettings } from '../../shared/types';
 
 const DEFAULTS: AppSettings = {
   theme: 'auto',
-  repoPath: '',
+  buildersVersion: '',
   toolPaths: { mkpfs: '', ufs2tool: '' },
   toolCache: { mkpfs: '', ufs2tool: '' },
   toolVersions: { mkpfs: '', ufs2tool: '' },
@@ -36,8 +36,10 @@ function merge(current: AppSettings, patch: Partial<AppSettings>): AppSettings {
 export function loadSettings(): AppSettings {
   try {
     const raw = fs.readFileSync(settingsFile(), 'utf8');
-    const parsed = JSON.parse(raw) as Partial<AppSettings>;
-    return merge({ ...DEFAULTS }, parsed);
+    const parsed = JSON.parse(raw) as Partial<AppSettings> & { repoPath?: string };
+    // Drop the pre-release checkout setting so it does not linger in the file.
+    const { repoPath: _legacyRepoPath, ...known } = parsed;
+    return merge({ ...DEFAULTS }, known);
   } catch {
     return {
       ...DEFAULTS,

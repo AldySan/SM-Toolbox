@@ -3,14 +3,10 @@ import { afterEach, describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { repoScripts } from '../src/main/lib/env';
-import type { AppSettings } from '../src/shared/types';
+import { builderScripts } from '../src/main/lib/env';
 
 const IS_WINDOWS = process.platform === 'win32';
 const SCRIPT = IS_WINDOWS ? 'New-OsfExfatImage.ps1' : 'mkexfat.sh';
-
-const settings = (repoPath = ''): AppSettings =>
-  ({ repoPath } as AppSettings);
 
 const dirs: string[] = [];
 
@@ -28,36 +24,37 @@ afterEach(() => {
   }
 });
 
-describe('repoScripts', () => {
-  it('prefers a checkout that contains the builder script', () => {
-    const checkout = makeDir(true);
+describe('builderScripts', () => {
+  it('prefers scripts fetched through the tool manager over the bundled copies', () => {
+    const downloaded = makeDir(true);
     const bundled = makeDir(true);
-    const result = repoScripts(settings(checkout), bundled);
+    const result = builderScripts(downloaded, bundled);
     expect(result.ok).toBe(true);
-    expect(result.origin).toBe('checkout');
-    expect(result.dir).toBe(checkout);
+    expect(result.origin).toBe('downloaded');
+    expect(result.dir).toBe(downloaded);
   });
 
-  it('falls back to the bundled scripts when no checkout is set', () => {
+  it('falls back to the bundled scripts when nothing was fetched', () => {
     const bundled = makeDir(true);
-    const result = repoScripts(settings(''), bundled);
+    const result = builderScripts(undefined, bundled);
     expect(result.ok).toBe(true);
     expect(result.origin).toBe('bundled');
     expect(result.dir).toBe(bundled);
   });
 
-  it('reports missing when the checkout is set but has no script', () => {
-    const checkout = makeDir(false);
+  it('ignores an incomplete download and falls back to the bundled copy', () => {
+    const downloaded = makeDir(false);
     const bundled = makeDir(true);
-    const result = repoScripts(settings(checkout), bundled);
+    const result = builderScripts(downloaded, bundled);
+    expect(result.ok).toBe(true);
+    expect(result.origin).toBe('bundled');
+    expect(result.dir).toBe(bundled);
+  });
+
+  it('reports missing when neither copy has the script', () => {
+    const result = builderScripts(undefined, makeDir(false));
     expect(result.ok).toBe(false);
     expect(result.origin).toBe('missing');
     expect(result.detail).toContain(SCRIPT);
-  });
-
-  it('reports missing when neither checkout nor bundled dir has the script', () => {
-    const result = repoScripts(settings(''), makeDir(false));
-    expect(result.ok).toBe(false);
-    expect(result.origin).toBe('missing');
   });
 });

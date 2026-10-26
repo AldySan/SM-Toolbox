@@ -74,7 +74,7 @@ export function App() {
       // state once the save completes.
       setSettings((current) => (current ? { ...current, ...patch } : current));
       const envRelevant =
-        'repoPath' in patch || 'toolPaths' in patch || 'toolCache' in patch || 'privilege' in patch;
+        'buildersVersion' in patch || 'toolPaths' in patch || 'toolCache' in patch || 'privilege' in patch;
       void smp.settings.set(patch).then((next) => {
         setSettings(next);
         if (envRelevant) refreshEnv();

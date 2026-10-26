@@ -166,8 +166,8 @@ export function HomeView(props: {
             >
               Settings
             </a>{' '}
-            lists what is missing and how to install it. exFAT also uses the builder scripts bundled with this app; a
-            local ShadowMountPlus checkout is optional.
+            lists what is missing and how to install it. exFAT also relies on the builder scripts bundled with this app
+            — Settings → Tools can fetch newer copies straight from the ShadowMountPlus repository.
           </p>
         )}
       </section>
@@ -255,9 +255,9 @@ function blockersFor(byId: Map<string, ToolCheck>, ids: string[]): string[] {
 }
 
 function exfatIds(env: EnvReport | null): string[] {
-  if (!env || (!env.isLinux && !env.isWindows)) return ['repo'];
-  if (env.isLinux) return ['repo', 'mkfs.exfat', 'mount.exfat-fuse', 'rsync'];
-  return ['repo', 'osfmount', 'powershell'];
+  if (!env || (!env.isLinux && !env.isWindows)) return ['builders'];
+  if (env.isLinux) return ['builders', 'mkfs.exfat', 'mount.exfat-fuse', 'rsync'];
+  return ['builders', 'osfmount', 'powershell'];
 }
 
 function greeting(): string {

@@ -98,33 +98,25 @@ function tool(id: string, label: string, requiredFor: ImageFormat[], found: bool
   return { id, label, requiredFor, found, ...extra };
 }
 
-export interface RepoScripts {
+export interface BuilderScripts {
   /** Directory the builder scripts will be executed from. */
   dir: string;
-  origin: 'checkout' | 'bundled' | 'missing';
+  origin: 'downloaded' | 'bundled' | 'missing';
   ok: boolean;
   detail?: string;
 }
 
 /**
- * Resolve the exFAT builder scripts. A local checkout wins when it contains
- * the expected script; otherwise the copies bundled with the app are used,
- * so building exFAT images works without cloning ShadowMountPlus at all.
- * `bundledDir` points at resources/builders and is injected by the caller
+ * Resolve the exFAT builder scripts. A copy fetched through the built-in
+ * manager (Settings → Tools) wins; otherwise the copies bundled with the
+ * app are used, so building exFAT images works with zero setup and no
+ * ShadowMountPlus checkout. Both directories are injected by the caller
  * (ipc.ts) to keep this module free of Electron imports and unit-testable.
  */
-export function repoScripts(settings: AppSettings, bundledDir?: string): RepoScripts {
+export function builderScripts(downloadedDir?: string, bundledDir?: string): BuilderScripts {
   const script = IS_WINDOWS ? 'New-OsfExfatImage.ps1' : 'mkexfat.sh';
-  if (settings.repoPath) {
-    if (fs.existsSync(path.join(settings.repoPath, script))) {
-      return { dir: settings.repoPath, origin: 'checkout', ok: true };
-    }
-    return {
-      dir: '',
-      origin: 'missing',
-      ok: false,
-      detail: `No ${script} inside ${settings.repoPath}`,
-    };
+  if (downloadedDir && fs.existsSync(path.join(downloadedDir, script))) {
+    return { dir: downloadedDir, origin: 'downloaded', ok: true };
   }
   if (bundledDir && fs.existsSync(path.join(bundledDir, script))) {
     return { dir: bundledDir, origin: 'bundled', ok: true };
@@ -133,7 +125,7 @@ export function repoScripts(settings: AppSettings, bundledDir?: string): RepoScr
     dir: '',
     origin: 'missing',
     ok: false,
-    detail: 'No builder script found (the bundled copy is missing — reinstall the toolbox)',
+    detail: `No ${script} found (the bundled copy is missing — reinstall the toolbox)`,
   };
 }
 
@@ -199,7 +191,11 @@ function resolveUfs2Tool(settings: AppSettings): ToolInvocation {
   return MISSING('ufs2tool');
 }
 
-export async function detectEnvironment(settings: AppSettings, bundledDir?: string): Promise<EnvReport> {
+export async function detectEnvironment(
+  settings: AppSettings,
+  downloadedDir?: string,
+  bundledDir?: string,
+): Promise<EnvReport> {
   const tools: ToolCheck[] = [];
   const resolved = resolveTools(settings);
 
@@ -246,21 +242,23 @@ export async function detectEnvironment(settings: AppSettings, bundledDir?: stri
     }
   }
 
-  const repo = repoScripts(settings, bundledDir);
+  const builders = builderScripts(downloadedDir, bundledDir);
   tools.push({
-    id: 'repo',
+    id: 'builders',
     label: 'exFAT builder scripts',
     requiredFor: ['exfat', 'ffpfsc'],
-    found: repo.ok,
+    found: builders.ok,
     detail:
-      repo.origin === 'checkout'
-        ? `checkout: ${repo.dir}`
-        : repo.origin === 'bundled'
-          ? 'bundled with the toolbox (a local checkout overrides them)'
-          : repo.detail,
+      builders.origin === 'downloaded'
+        ? settings.buildersVersion
+          ? `downloaded from ShadowMountPlus @${settings.buildersVersion.slice(0, 7)}`
+          : 'downloaded from ShadowMountPlus'
+        : builders.origin === 'bundled'
+          ? 'bundled with the toolbox'
+          : builders.detail,
     fix:
-      repo.origin === 'missing'
-        ? 'Set the ShadowMountPlus checkout in Settings to use your own scripts, or reinstall the toolbox.'
+      builders.origin === 'missing'
+        ? 'Fetch them from Settings → Tools, or reinstall the toolbox.'
         : undefined,
   });
 
@@ -306,10 +304,8 @@ export async function detectEnvironment(settings: AppSettings, bundledDir?: stri
     platform: process.platform,
     isWindows: IS_WINDOWS,
     isLinux: IS_LINUX,
-    repoPath: settings.repoPath,
-    repoOk: repo.ok,
-    repoOrigin: repo.origin,
-    repoDetail: repo.detail,
+    repoOk: builders.ok,
+    repoOrigin: builders.origin,
     tools,
     privilege: {
       mode: settings.privilege,
