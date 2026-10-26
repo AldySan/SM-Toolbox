@@ -38,6 +38,8 @@ On startup, the app can check GitHub for a newer SM+ Toolbox release and direct 
 
 The built-in tool manager also handles downloading UFS2Tool and MkPFS, so you don't have to hunt down those dependencies yourself.
 
+When something is missing, the Home view offers a one-click setup that installs everything the app can manage in a single pass, and Settings can check those tools for newer releases.
+
 ### Built-in documentation
 
 Installation instructions, usage notes, and troubleshooting information from the ShadowMountPlus README are available inside the app, with search to help you find what you need.
@@ -143,6 +145,7 @@ src/
 │       ├── verifier.ts     # Folder stats and image signature detection
 │       ├── toolmanager.ts  # UFS2Tool and MkPFS downloads
 │       ├── payload.ts      # Payload download and TCP transfer
+│       ├── setup.ts        # One-click setup planning
 │       ├── updater.ts      # GitHub release checks
 │       ├── version.ts      # Semantic version comparison
 │       └── settings.ts     # Persistent app settings
@@ -180,7 +183,7 @@ A few conventions used in this repository:
 - **Commit messages:** follow Conventional Commits.
 - **Pull requests:** target `dev`; `main` tracks releases.
 - **CI:** `.github/workflows/build.yml` builds and smoke-tests the app on `ubuntu-latest` and `windows-latest` for pushes and pull requests. Tagged releases matching `v*` also receive Windows and Linux distributables.
-- **Tests:** run with Vitest via `npm test`. The suite covers build recipes, image detection, the queue state machine, and semantic-version comparison. These tests don't require network access or an Electron runtime.
+- **Tests:** run with Vitest via `npm test`. The suite covers build recipes, image detection, the queue state machine, semantic-version comparison, and the one-click setup planner. These tests don't require network access or an Electron runtime.
 
 ## Contributing
 
