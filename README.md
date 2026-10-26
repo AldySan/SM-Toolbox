@@ -61,8 +61,9 @@ The requirements depend on which image format you want to build.
 
 Regardless of your platform, you'll also need:
 
-- A local checkout of [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus). The exFAT builders are included in that repository and run from your local copy.
 - A decrypted game dump with `eboot.bin` and `sce_sys/param.json` in the root directory.
+
+The exFAT builder scripts (`mkexfat.sh` / `New-OsfExfatImage.ps1`) ship inside the app, so a local [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) checkout is optional — point Settings at one only when you want to test your own copy of the scripts.
 
 The app checks for the required game files before starting a build, so an incomplete source directory won't be processed.
 

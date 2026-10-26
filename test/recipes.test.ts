@@ -30,7 +30,7 @@ const ufs2Tool = (): ToolInvocation => ({
 
 const linuxCtx = (over: Partial<StepContext> = {}): StepContext => ({
   isWindows: false,
-  repoPath: '/repo',
+  buildersDir: '/repo',
   mkpfs: mkpfsTool(),
   ufs2tool: ufs2Tool(),
   sourceFileCount: 100,
@@ -38,7 +38,7 @@ const linuxCtx = (over: Partial<StepContext> = {}): StepContext => ({
 });
 
 const winCtx = (over: Partial<StepContext> = {}): StepContext =>
-  linuxCtx({ isWindows: true, repoPath: 'C:\\repo', ...over });
+  linuxCtx({ isWindows: true, buildersDir: 'C:\\repo', ...over });
 
 function shellOf(step: Step) {
   if (step.kind !== 'shell') throw new Error(`expected shell step, got ${step.kind}`);

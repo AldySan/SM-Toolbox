@@ -19,6 +19,17 @@ import type { QueueSnapshot } from '../shared/types';
 
 const IS_WINDOWS = process.platform === 'win32';
 
+/**
+ * Directory of the exFAT builder scripts bundled with the app. Packaged
+ * builds ship them via packagerConfig.extraResource (<resources>/builders);
+ * in development they sit in the checkout next to the app sources.
+ */
+function bundledBuildersDir(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'builders')
+    : path.join(app.getAppPath(), 'resources', 'builders');
+}
+
 const asString = (value: unknown): string => (typeof value === 'string' ? value : '');
 
 const jobs = new Map<string, RunningJob>();
@@ -43,8 +54,10 @@ function prepareSpec(raw: unknown): BuildSpec {
   const resolved = resolveTools(settings);
 
   if (spec.format === 'exfat' || (spec.format === 'ffpfsc' && (spec.innerFormat ?? 'exfat') === 'exfat')) {
-    if (!repoScripts(settings).ok) {
-      throw new Error('Set the ShadowMountPlus repository path in Settings first (it provides the exFAT builder script).');
+    if (!repoScripts(settings, bundledBuildersDir()).ok) {
+      throw new Error(
+        'No exFAT builder script available. Set the ShadowMountPlus checkout in Settings, or reinstall the toolbox (it ships its own copy).',
+      );
     }
   }
   if (spec.format === 'ufs2' && resolved.ufs2tool.origin === 'missing') {
@@ -65,7 +78,7 @@ function stepContext(spec: BuildSpec, sourceFileCount: number) {
   const resolved = resolveTools(settings);
   return {
     isWindows: IS_WINDOWS,
-    repoPath: settings.repoPath,
+    buildersDir: repoScripts(settings, bundledBuildersDir()).dir,
     mkpfs: resolved.mkpfs,
     ufs2tool: resolved.ufs2tool,
     sourceFileCount,
@@ -150,7 +163,7 @@ export function registerIpc(): void {
     clipboard.writeText(asString(text));
   });
 
-  ipcMain.handle(IPC.EnvDetect, async () => detectEnvironment(loadSettings()));
+  ipcMain.handle(IPC.EnvDetect, async () => detectEnvironment(loadSettings(), bundledBuildersDir()));
 
   ipcMain.handle(IPC.FolderStat, (_event, target) => statFolder(asString(target)));
   ipcMain.handle(IPC.JobPreview, (_event, raw) => {
