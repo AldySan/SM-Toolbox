@@ -106,12 +106,14 @@ export function TroubleshootView() {
               </button>
               <div className={`trouble-body-wrap${expanded ? ' open' : ''}`}>
                 <div className="trouble-body">
-                  <p className="dim">{section.symptoms}</p>
-                  <ol className="steps plain-list numbered">
-                    {section.steps.map((step, index) => (
-                      <li key={index}>{step}</li>
-                    ))}
-                  </ol>
+                  <div className="trouble-body-pad">
+                    <p className="dim">{section.symptoms}</p>
+                    <ol className="steps plain-list numbered">
+                      {section.steps.map((step, index) => (
+                        <li key={index}>{step}</li>
+                      ))}
+                    </ol>
+                  </div>
                 </div>
               </div>
             </div>
