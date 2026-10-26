@@ -48,6 +48,10 @@ const api: SmpApi = {
     download: (tool, assetName) => ipcRenderer.invoke(IPC.ToolDownload, tool, assetName),
     listAssets: (tool) => ipcRenderer.invoke(IPC.ToolListAssets, tool),
     downloadPayload: () => ipcRenderer.invoke(IPC.PayloadDownload),
+    checkUpdates: () => ipcRenderer.invoke(IPC.ToolCheckUpdates),
+  },
+  setup: {
+    run: () => ipcRenderer.invoke(IPC.SetupRun),
   },
   send: {
     payload: (opts) => ipcRenderer.invoke(IPC.SendPayload, opts),

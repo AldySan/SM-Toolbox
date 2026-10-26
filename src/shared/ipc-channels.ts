@@ -23,6 +23,8 @@ export const IPC = {
   QueueClear: 'queue:clear',
   ToolDownload: 'tools:download',
   ToolListAssets: 'tools:list-assets',
+  ToolCheckUpdates: 'tools:check-updates',
+  SetupRun: 'setup:run',
   PayloadDownload: 'tools:download-payload',
   SendPayload: 'send:payload',
   SendCancel: 'send:cancel',

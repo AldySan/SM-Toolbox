@@ -22,6 +22,8 @@ export interface ToolInstall {
   /** Binary path (ufs2tool) or extracted wheel directory (mkpfs). */
   path: string;
   version: string;
+  /** The GitHub release tag the artifact came from; stored for update checks. */
+  releaseTag: string;
   kind: 'binary' | 'whl';
 }
 
@@ -222,7 +224,7 @@ export async function downloadTool(
     const version = await probe(python.cmd, [...python.prefix, '-m', 'mkpfs', '-V'], {
       PYTHONPATH: packageDir,
     });
-    return { path: packageDir, version: version ?? release.version, kind: 'whl' };
+    return { path: packageDir, version: version ?? release.version, releaseTag: release.version, kind: 'whl' };
   }
 
   emit({ tool, type: 'status', text: 'Extracting…' });
@@ -237,5 +239,5 @@ export async function downloadTool(
 
   emit({ tool, type: 'status', text: 'Verifying…' });
   const banner = await probe(binary, []);
-  return { path: binary, version: banner ?? release.version, kind: 'binary' };
+  return { path: binary, version: banner ?? release.version, releaseTag: release.version, kind: 'binary' };
 }
