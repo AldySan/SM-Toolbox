@@ -31,6 +31,11 @@ export interface AppSettings {
     mkpfs: string;
     ufs2tool: string;
   };
+  /** Release tags of tool-manager installs; used to spot tool updates. */
+  toolVersions: {
+    mkpfs: string;
+    ufs2tool: string;
+  };
   privilege: PrivilegeMode;
   defaultOutDir: string;
   /** Check GitHub for a newer release shortly after launch. */
@@ -58,6 +63,21 @@ export interface UpdateCheckResult {
   currentVersion: string;
   latestVersion?: string;
   releaseUrl?: string;
+  message?: string;
+}
+
+export interface SetupSummary {
+  installed: ('mkpfs' | 'ufs2tool')[];
+  updated: ('mkpfs' | 'ufs2tool')[];
+  skipped: ('mkpfs' | 'ufs2tool')[];
+  failed: { tool: 'mkpfs' | 'ufs2tool'; error: string }[];
+}
+
+export interface ToolUpdateCheck {
+  tool: 'mkpfs' | 'ufs2tool';
+  current?: string;
+  latest?: string;
+  updateAvailable: boolean;
   message?: string;
 }
 
@@ -228,6 +248,10 @@ export interface SmpApi {
     download(tool: 'mkpfs' | 'ufs2tool', assetName?: string): Promise<{ ok: boolean; path?: string; error?: string }>;
     listAssets(tool: 'mkpfs' | 'ufs2tool'): Promise<{ version: string; assets: ReleaseAsset[] }>;
     downloadPayload(): Promise<{ ok: boolean; path?: string; error?: string }>;
+    checkUpdates(): Promise<ToolUpdateCheck[]>;
+  };
+  setup: {
+    run(): Promise<SetupSummary>;
   };
   send: {
     payload(opts: { host: string; port: number; elfPath: string }): Promise<{ sendId: string }>;

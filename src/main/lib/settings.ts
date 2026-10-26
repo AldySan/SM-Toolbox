@@ -9,6 +9,7 @@ const DEFAULTS: AppSettings = {
   repoPath: '',
   toolPaths: { mkpfs: '', ufs2tool: '' },
   toolCache: { mkpfs: '', ufs2tool: '' },
+  toolVersions: { mkpfs: '', ufs2tool: '' },
   privilege: 'auto',
   defaultOutDir: '',
   autoCheckUpdates: true,
@@ -27,6 +28,7 @@ function merge(current: AppSettings, patch: Partial<AppSettings>): AppSettings {
     ...patch,
     toolPaths: { ...current.toolPaths, ...(patch.toolPaths ?? {}) },
     toolCache: { ...current.toolCache, ...(patch.toolCache ?? {}) },
+    toolVersions: { ...current.toolVersions, ...(patch.toolVersions ?? {}) },
     ps5: { ...current.ps5, ...(patch.ps5 ?? {}) },
   };
 }
@@ -41,6 +43,7 @@ export function loadSettings(): AppSettings {
       ...DEFAULTS,
       toolPaths: { ...DEFAULTS.toolPaths },
       toolCache: { ...DEFAULTS.toolCache },
+      toolVersions: { ...DEFAULTS.toolVersions },
       ps5: { ...DEFAULTS.ps5 },
     };
   }

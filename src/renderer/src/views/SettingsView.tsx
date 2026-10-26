@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { useEffect, useState } from 'react';
-import type { AppInfo, AppSettings, EnvReport, ThemeMode, ToolCheck, ToolEvent, UpdateCheckResult } from '../../../shared/types';
+import type {
+  AppInfo,
+  AppSettings,
+  EnvReport,
+  ThemeMode,
+  ToolCheck,
+  ToolEvent,
+  ToolUpdateCheck,
+  UpdateCheckResult,
+} from '../../../shared/types';
 import { smp } from '../lib/api';
 import { Segmented } from '../components/Segmented';
 import { PathField } from '../components/PathField';
@@ -28,6 +37,8 @@ export function SettingsView(props: {
   const [busy, setBusy] = useState<Partial<Record<ToolId, boolean>>>({});
   const [toolError, setToolError] = useState<Partial<Record<ToolId, string>>>({});
   const [checking, setChecking] = useState(false);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [toolUpdates, setToolUpdates] = useState<Partial<Record<ToolId, ToolUpdateCheck>> | null>(null);
 
   useEffect(() => {
     const unsubscribe = smp.onToolEvent((event: ToolEvent) => {
@@ -51,6 +62,14 @@ export function SettingsView(props: {
           setToolError((prev) => ({ ...prev, [tool]: event.error }));
         } else {
           setToolError((prev) => {
+            const next = { ...prev };
+            delete next[tool];
+            return next;
+          });
+          // A finished download always installs the latest release, so the
+          // pending update notice for this tool is satisfied.
+          setToolUpdates((prev) => {
+            if (!prev || !prev[tool]) return prev;
             const next = { ...prev };
             delete next[tool];
             return next;
@@ -96,6 +115,19 @@ export function SettingsView(props: {
       .finally(() => setChecking(false));
   };
 
+  const runToolUpdateCheck = () => {
+    setCheckingUpdates(true);
+    void smp.tools
+      .checkUpdates()
+      .then((results) => {
+        const map: Partial<Record<ToolId, ToolUpdateCheck>> = {};
+        for (const result of results) map[result.tool] = result;
+        setToolUpdates(map);
+      })
+      .catch(() => undefined)
+      .finally(() => setCheckingUpdates(false));
+  };
+
   return (
     <div className="view">
       <div className="view-head">
@@ -134,7 +166,12 @@ export function SettingsView(props: {
       </div>
 
       <div className="card">
-        <h2>Tools</h2>
+        <div className="card-head-row">
+          <h2>Tools</h2>
+          <button type="button" className="btn btn-small" disabled={checkingUpdates} onClick={runToolUpdateCheck}>
+            {checkingUpdates ? 'Checking…' : 'Check for updates'}
+          </button>
+        </div>
         <ToolRow
           toolId="mkpfs"
           label="MkPFS"
@@ -144,6 +181,7 @@ export function SettingsView(props: {
           progress={progress.mkpfs}
           busy={busy.mkpfs}
           error={toolError.mkpfs}
+          update={toolUpdates?.mkpfs}
           onOverride={(value) => props.onChange({ toolPaths: { ...settings.toolPaths, mkpfs: value } })}
           onDownload={() => download('mkpfs')}
         />
@@ -156,6 +194,7 @@ export function SettingsView(props: {
           progress={progress.ufs2tool}
           busy={busy.ufs2tool}
           error={toolError.ufs2tool}
+          update={toolUpdates?.ufs2tool}
           onOverride={(value) => props.onChange({ toolPaths: { ...settings.toolPaths, ufs2tool: value } })}
           onDownload={() => download('ufs2tool')}
         />
@@ -322,6 +361,7 @@ function ToolRow(props: {
   progress?: ToolProgress;
   busy?: boolean;
   error?: string;
+  update?: ToolUpdateCheck;
   onOverride: (value: string) => void;
   onDownload: () => void;
 }) {
@@ -337,6 +377,24 @@ function ToolRow(props: {
           {props.busy ? 'Working…' : 'Download latest'}
         </button>
       </div>
+      {props.update && (
+        <div className={`tool-update${props.update.updateAvailable ? ' available' : ''}`}>
+          {props.update.updateAvailable ? (
+            <>
+              <span className="mono">
+                {props.update.current ?? '?'} → {props.update.latest}
+              </span>
+              <button type="button" className="btn btn-small" disabled={props.busy} onClick={props.onDownload}>
+                Update
+              </button>
+            </>
+          ) : (
+            <span className="field-hint">
+              {props.update.message ?? (props.update.latest ? `Up to date (${props.update.current})` : 'No release info')}
+            </span>
+          )}
+        </div>
+      )}
       <PathField
         label="Path override"
         value={props.override}

@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { IPC } from '../shared/ipc-channels';
-import type { BuildSpec, JobEvent, SendEvent, ToolEvent } from '../shared/types';
+import type { BuildSpec, JobEvent, SendEvent, ToolEvent, ToolUpdateCheck } from '../shared/types';
 import { loadSettings, saveSettings } from './lib/settings';
 import { detectEnvironment, findExecutable, repoScripts, resolveTools } from './lib/env';
 import { buildSteps, jobTitle, stepsToPreview } from './lib/recipes';
@@ -13,6 +13,7 @@ import { detectImage, statFolder } from './lib/verifier';
 import { downloadTool, listAssets } from './lib/toolmanager';
 import { ensurePayload, sendPayload } from './lib/payload';
 import { checkForUpdates } from './lib/updater';
+import { installedTags, planSetup, shouldUpdate, type ManagedTool, type SetupSummary } from './lib/setup';
 import { JobQueue } from './lib/queue';
 import type { QueueSnapshot } from '../shared/types';
 
@@ -214,7 +215,10 @@ export function registerIpc(): void {
     try {
       const result = await downloadTool(tool, emit, typeof assetName === 'string' ? assetName : undefined);
       const settings = loadSettings();
-      saveSettings({ toolCache: { ...settings.toolCache, [tool]: result.path } });
+      saveSettings({
+        toolCache: { ...settings.toolCache, [tool]: result.path },
+        toolVersions: { ...settings.toolVersions, [tool]: result.releaseTag },
+      });
       emit({ tool, type: 'done', path: result.path, version: result.version });
       return { ok: true, path: result.path };
     } catch (error) {
@@ -222,6 +226,84 @@ export function registerIpc(): void {
       emit({ tool, type: 'done', error: message });
       return { ok: false, error: message };
     }
+  });
+
+  ipcMain.handle(IPC.ToolCheckUpdates, async () => {
+    const settings = loadSettings();
+    const results: ToolUpdateCheck[] = [];
+    for (const tool of ['mkpfs', 'ufs2tool'] as const) {
+      const current = settings.toolVersions[tool];
+      if (!current) {
+        results.push({ tool, updateAvailable: false, message: 'Not installed through the toolbox' });
+        continue;
+      }
+      try {
+        const latest = (await listAssets(tool)).version;
+        results.push({ tool, current, latest, updateAvailable: shouldUpdate(current, latest) });
+      } catch (error) {
+        results.push({
+          tool,
+          current,
+          updateAvailable: false,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+    return results;
+  });
+
+  // One-click setup ("plug 2 play"): install what is missing, refresh what is
+  // outdated, leave anything the user manages on their own alone. Download
+  // progress streams through the regular tool events, so Settings rows and
+  // the Home view both update live.
+  ipcMain.handle(IPC.SetupRun, async (event) => {
+    const sender = BrowserWindow.fromWebContents(event.sender);
+    const emit = (payload: ToolEvent) => {
+      if (!sender || sender.isDestroyed()) return;
+      sender.webContents.send(IPC.EventTool, payload);
+    };
+
+    const settings = loadSettings();
+    const resolved = resolveTools(settings);
+
+    // Best-effort latest tags: when GitHub is unreachable the plan simply
+    // skips updates instead of failing the whole setup.
+    const latestTags: Partial<Record<ManagedTool, string>> = {};
+    await Promise.all(
+      (['mkpfs', 'ufs2tool'] as const).map(async (tool) => {
+        try {
+          latestTags[tool] = (await listAssets(tool)).version;
+        } catch {
+          // Offline or rate-limited: updates are skipped, installs still run.
+        }
+      }),
+    );
+
+    const plan = planSetup(
+      { mkpfs: resolved.mkpfs.origin, ufs2tool: resolved.ufs2tool.origin },
+      installedTags(settings),
+      latestTags,
+    );
+
+    const summary: SetupSummary = { installed: [], updated: [], skipped: [], failed: [] };
+    for (const entry of plan) {
+      if (entry.action === 'skip') {
+        summary.skipped.push(entry.tool);
+        continue;
+      }
+      try {
+        const result = await downloadTool(entry.tool, emit);
+        const nowSettings = loadSettings();
+        saveSettings({
+          toolCache: { ...nowSettings.toolCache, [entry.tool]: result.path },
+          toolVersions: { ...nowSettings.toolVersions, [entry.tool]: result.releaseTag },
+        });
+        summary[entry.action === 'install' ? 'installed' : 'updated'].push(entry.tool);
+      } catch (error) {
+        summary.failed.push({ tool: entry.tool, error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    return summary;
   });
 
   /* ---------- verification ---------- */
