@@ -25,7 +25,7 @@ export type Step =
       env?: Record<string, string>;
       privileged: boolean;
     }
-  | { kind: 'unlink'; description: string; command: string; target: string };
+  | { kind: 'unlink'; description: string; command: string; target: string; recursive?: boolean };
 
 const UFS2_PROFILE = ['-O', '2', '-b', '65536', '-f', '65536', '-m', '0', '-S', '4096'];
 
@@ -181,15 +181,33 @@ function packSteps(
       target: intermediate,
     });
   }
+  return appendPostBuild(spec, steps);
+}
+
+/**
+ * Post-build steps run only after every build step succeeded — the runner
+ * stops at the first failure, so a failed or cancelled build never deletes
+ * the source folder.
+ */
+function appendPostBuild(spec: BuildSpec, steps: Step[]): Step[] {
+  if (spec.deleteSourceAfterSuccess) {
+    steps.push({
+      kind: 'unlink',
+      description: 'Delete the source folder (requested)',
+      command: `rm -r ${quote(spec.sourceDir)}`,
+      target: spec.sourceDir,
+      recursive: true,
+    });
+  }
   return steps;
 }
 
 export function buildSteps(spec: BuildSpec, ctx: StepContext): Step[] {
   switch (spec.format) {
     case 'exfat':
-      return exfatShellSteps(spec, ctx);
+      return appendPostBuild(spec, exfatShellSteps(spec, ctx));
     case 'ufs2':
-      return [ufs2ShellStep(spec, ctx)];
+      return appendPostBuild(spec, [ufs2ShellStep(spec, ctx)]);
     case 'ffpfsc': {
       const innerFormat: InnerFormat = spec.innerFormat ?? 'exfat';
       const base = spec.outputFile.replace(/\.[^.\\/]+$/, '');

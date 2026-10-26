@@ -1811,3 +1811,47 @@ input::placeholder {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- Lazy view fallback ---------- */
+
+/* Keeps the layout height stable for a frame while a lazy view chunk loads,
+   so navigating does not visibly jump. */
+.view-loading {
+  min-height: 40vh;
+}
+
+/* ---------- Create view: post-build toggles ---------- */
+
+.postbuild-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 4px 0 2px;
+}
+
+.postbuild-toggles .checkbox {
+  padding: 4px 0;
+}
+
+/* ---------- Verify view queue ---------- */
+
+/* The verify queue reuses the build-queue row styles; inside a card the rows
+   get a touch more air and a hover affordance for selection. */
+.verify-list .queue-row {
+  padding: 6px 4px;
+}
+
+.verify-list .queue-row:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.verify-list .queue-title:disabled {
+  cursor: pointer;
+}
+
+.card-head-row .queue-summary {
+  gap: 6px;
+  flex: 1;
+  justify-content: flex-end;
+  margin-right: 10px;
+}

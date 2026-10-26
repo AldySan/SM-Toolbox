@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { AppInfo, AppSettings, BuildSpec, EnvReport, ThemeMode, UpdateCheckResult } from '../../shared/types';
 import { smp } from './lib/api';
@@ -9,12 +9,19 @@ import { Sidebar } from './components/Sidebar';
 import { TerminalDock } from './components/Terminal';
 import { QueuePanel } from './components/QueuePanel';
 import { HomeView } from './views/HomeView';
-import { CreateView } from './views/CreateView';
-import { VerifyView } from './views/VerifyView';
-import { SendView } from './views/SendView';
-import { GuideView } from './views/GuideView';
-import { TroubleshootView } from './views/TroubleshootView';
-import { SettingsView } from './views/SettingsView';
+
+// Everything except the default view loads on demand: the startup bundle only
+// carries the home screen, and the remaining views stream in while navigating.
+const CreateView = lazy(() => import('./views/CreateView').then((m) => ({ default: m.CreateView })));
+const VerifyView = lazy(() => import('./views/VerifyView').then((m) => ({ default: m.VerifyView })));
+const SendView = lazy(() => import('./views/SendView').then((m) => ({ default: m.SendView })));
+const GuideView = lazy(() => import('./views/GuideView').then((m) => ({ default: m.GuideView })));
+const TroubleshootView = lazy(() => import('./views/TroubleshootView').then((m) => ({ default: m.TroubleshootView })));
+const SettingsView = lazy(() => import('./views/SettingsView').then((m) => ({ default: m.SettingsView })));
+
+function ViewFallback() {
+  return <div className="view-loading" aria-hidden="true" />;
+}
 
 interface NavItem {
   id: string;
@@ -150,25 +157,35 @@ export function App() {
         {/* Keyed by the active view: each navigation remounts the content and
             plays the enter animation defined in styles.css. */}
         <main className="content view-anim" key={view}>
-          {view === 'home' && (
-            <HomeView appInfo={appInfo} settings={settings} env={env} onNavigate={setView} onRefreshEnv={refreshEnv} />
-          )}
-          {view === 'create' && <CreateView settings={settings} env={env} queue={queue.snapshot} onEnqueue={enqueue} />}
-          {view === 'verify' && <VerifyView settings={settings} />}
-          {view === 'send' && <SendView settings={settings} onChange={updateSettings} />}
-          {view === 'guide' && <GuideView />}
-          {view === 'troubleshoot' && <TroubleshootView />}
-          {view === 'settings' && (
-            <SettingsView
-              settings={settings}
-              appInfo={appInfo}
-              env={env}
-              updateInfo={updateInfo}
-              onChange={updateSettings}
-              onCheckUpdates={checkUpdates}
-              onRefreshEnv={refreshEnv}
-            />
-          )}
+          <Suspense fallback={<ViewFallback />}>
+            {view === 'home' && (
+              <HomeView appInfo={appInfo} settings={settings} env={env} onNavigate={setView} onRefreshEnv={refreshEnv} />
+            )}
+            {view === 'create' && (
+              <CreateView
+                settings={settings}
+                env={env}
+                queue={queue.snapshot}
+                onEnqueue={enqueue}
+                onChange={updateSettings}
+              />
+            )}
+            {view === 'verify' && <VerifyView settings={settings} />}
+            {view === 'send' && <SendView settings={settings} onChange={updateSettings} />}
+            {view === 'guide' && <GuideView />}
+            {view === 'troubleshoot' && <TroubleshootView />}
+            {view === 'settings' && (
+              <SettingsView
+                settings={settings}
+                appInfo={appInfo}
+                env={env}
+                updateInfo={updateInfo}
+                onChange={updateSettings}
+                onCheckUpdates={checkUpdates}
+                onRefreshEnv={refreshEnv}
+              />
+            )}
+          </Suspense>
         </main>
       </div>
       <QueuePanel

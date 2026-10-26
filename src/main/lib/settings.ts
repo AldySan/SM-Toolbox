@@ -14,6 +14,7 @@ const DEFAULTS: AppSettings = {
   defaultOutDir: '',
   autoCheckUpdates: true,
   sidebarCollapsed: false,
+  createDefaults: { autoVerify: true, deleteSource: false },
   ps5: { host: '', port: 9021 },
   recentHosts: [],
 };
@@ -29,6 +30,7 @@ function merge(current: AppSettings, patch: Partial<AppSettings>): AppSettings {
     toolPaths: { ...current.toolPaths, ...(patch.toolPaths ?? {}) },
     toolCache: { ...current.toolCache, ...(patch.toolCache ?? {}) },
     toolVersions: { ...current.toolVersions, ...(patch.toolVersions ?? {}) },
+    createDefaults: { ...current.createDefaults, ...(patch.createDefaults ?? {}) },
     ps5: { ...current.ps5, ...(patch.ps5 ?? {}) },
   };
 }
@@ -39,13 +41,14 @@ export function loadSettings(): AppSettings {
     const parsed = JSON.parse(raw) as Partial<AppSettings> & { repoPath?: string };
     // Drop the pre-release checkout setting so it does not linger in the file.
     const { repoPath: _legacyRepoPath, ...known } = parsed;
-    return merge({ ...DEFAULTS }, known);
+    return merge({ ...DEFAULTS, createDefaults: { ...DEFAULTS.createDefaults } }, known);
   } catch {
     return {
       ...DEFAULTS,
       toolPaths: { ...DEFAULTS.toolPaths },
       toolCache: { ...DEFAULTS.toolCache },
       toolVersions: { ...DEFAULTS.toolVersions },
+      createDefaults: { ...DEFAULTS.createDefaults },
       ps5: { ...DEFAULTS.ps5 },
     };
   }
