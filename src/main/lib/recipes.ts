@@ -8,7 +8,8 @@ import type { ToolInvocation } from './env';
 
 export interface StepContext {
   isWindows: boolean;
-  repoPath: string;
+  /** Directory the exFAT builder scripts run from (checkout or bundled). */
+  buildersDir: string;
   mkpfs: ToolInvocation;
   ufs2tool: ToolInvocation;
   sourceFileCount: number;
@@ -74,7 +75,7 @@ function shellStep(description: string, invocation: Invocation, privileged: bool
 
 function exfatShellSteps(spec: BuildSpec, ctx: StepContext): Step[] {
   if (ctx.isWindows) {
-    const script = `${ctx.repoPath}\\New-OsfExfatImage.ps1`;
+    const script = `${ctx.buildersDir}\\New-OsfExfatImage.ps1`;
     const args = [
       '-NoProfile',
       '-ExecutionPolicy',
@@ -100,7 +101,7 @@ function exfatShellSteps(spec: BuildSpec, ctx: StepContext): Step[] {
       ),
     ];
   }
-  const script = `${ctx.repoPath}/mkexfat.sh`;
+  const script = `${ctx.buildersDir}/mkexfat.sh`;
   return [
     shellStep(
       'Create exFAT image via mkexfat.sh',

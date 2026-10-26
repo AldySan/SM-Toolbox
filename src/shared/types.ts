@@ -20,7 +20,7 @@ export interface FileFilter {
 
 export interface AppSettings {
   theme: ThemeMode;
-  /** Directory of a local ShadowMountPlus checkout used for its build scripts. */
+  /** Optional local ShadowMountPlus checkout; its builder scripts override the bundled copies. */
   repoPath: string;
   toolPaths: {
     mkpfs: string;
@@ -98,6 +98,8 @@ export interface EnvReport {
   isLinux: boolean;
   repoPath: string;
   repoOk: boolean;
+  /** Where the exFAT builder scripts will actually run from. */
+  repoOrigin: 'checkout' | 'bundled' | 'missing';
   repoDetail?: string;
   tools: ToolCheck[];
   privilege: {

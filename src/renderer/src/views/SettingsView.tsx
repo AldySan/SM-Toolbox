@@ -155,13 +155,17 @@ export function SettingsView(props: {
       <div className="card">
         <h2>ShadowMountPlus repository</h2>
         <PathField
-          label="Local checkout"
+          label="Local checkout (optional)"
           value={settings.repoPath}
           kind="folder"
           dialogTitle="Select your ShadowMountPlus checkout"
-          placeholder="/home/user/ShadowMountPlus"
+          placeholder="Leave empty to use the bundled builder scripts"
           onChange={(repoPath) => props.onChange({ repoPath })}
-          hint="Image-builder scripts shipped with the repo are executed from this directory, so the client always uses your checked-out version."
+          hint={
+            env?.repoOrigin === 'bundled'
+              ? 'Currently using the builder scripts bundled with the toolbox. Point this at a ShadowMountPlus checkout to run your own copy of them instead.'
+              : 'When set, the image-builder scripts inside the checkout are used instead of the bundled copies — handy for testing upstream changes.'
+          }
         />
       </div>
 

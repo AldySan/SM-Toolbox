@@ -156,7 +156,7 @@ export function HomeView(props: {
         {!setupRunning && setupSummary && <SetupResult summary={setupSummary} />}
         {!detecting && !allReady && !missingManaged && (
           <p className="field-hint">
-            The remaining pieces are system tools or the ShadowMountPlus checkout —{' '}
+            The remaining pieces are system tools this toolbox cannot install for you —{' '}
             <a
               href=""
               onClick={(event) => {
@@ -166,7 +166,8 @@ export function HomeView(props: {
             >
               Settings
             </a>{' '}
-            lists what is missing and how to install it.
+            lists what is missing and how to install it. exFAT also uses the builder scripts bundled with this app; a
+            local ShadowMountPlus checkout is optional.
           </p>
         )}
       </section>

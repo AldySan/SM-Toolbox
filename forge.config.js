@@ -23,6 +23,9 @@ const config = {
     asar: true,
     icon: 'assets/icon',
     appCopyright: 'Copyright (C) ShadowMountPlus contributors',
+    // exFAT builder scripts from ShadowMountPlus; shipped outside the asar so
+    // they can be executed directly (bash / powershell -File).
+    extraResource: ['resources/builders'],
   },
   rebuildConfig: {},
   makers: [

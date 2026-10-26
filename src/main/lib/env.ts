@@ -98,20 +98,42 @@ function tool(id: string, label: string, requiredFor: ImageFormat[], found: bool
   return { id, label, requiredFor, found, ...extra };
 }
 
-export function repoScripts(settings: AppSettings): { repoPath: string; ok: boolean; detail?: string } {
-  if (!settings.repoPath) {
-    return { repoPath: '', ok: false, detail: 'Repository path is not set' };
-  }
-  const scripts = IS_WINDOWS ? ['New-OsfExfatImage.ps1'] : ['mkexfat.sh'];
-  for (const script of scripts) {
+export interface RepoScripts {
+  /** Directory the builder scripts will be executed from. */
+  dir: string;
+  origin: 'checkout' | 'bundled' | 'missing';
+  ok: boolean;
+  detail?: string;
+}
+
+/**
+ * Resolve the exFAT builder scripts. A local checkout wins when it contains
+ * the expected script; otherwise the copies bundled with the app are used,
+ * so building exFAT images works without cloning ShadowMountPlus at all.
+ * `bundledDir` points at resources/builders and is injected by the caller
+ * (ipc.ts) to keep this module free of Electron imports and unit-testable.
+ */
+export function repoScripts(settings: AppSettings, bundledDir?: string): RepoScripts {
+  const script = IS_WINDOWS ? 'New-OsfExfatImage.ps1' : 'mkexfat.sh';
+  if (settings.repoPath) {
     if (fs.existsSync(path.join(settings.repoPath, script))) {
-      return { repoPath: settings.repoPath, ok: true };
+      return { dir: settings.repoPath, origin: 'checkout', ok: true };
     }
+    return {
+      dir: '',
+      origin: 'missing',
+      ok: false,
+      detail: `No ${script} inside ${settings.repoPath}`,
+    };
+  }
+  if (bundledDir && fs.existsSync(path.join(bundledDir, script))) {
+    return { dir: bundledDir, origin: 'bundled', ok: true };
   }
   return {
-    repoPath: settings.repoPath,
+    dir: '',
+    origin: 'missing',
     ok: false,
-    detail: `No builder script found (expected ${scripts.join(', ')} inside the checkout)`,
+    detail: 'No builder script found (the bundled copy is missing — reinstall the toolbox)',
   };
 }
 
@@ -177,7 +199,7 @@ function resolveUfs2Tool(settings: AppSettings): ToolInvocation {
   return MISSING('ufs2tool');
 }
 
-export async function detectEnvironment(settings: AppSettings): Promise<EnvReport> {
+export async function detectEnvironment(settings: AppSettings, bundledDir?: string): Promise<EnvReport> {
   const tools: ToolCheck[] = [];
   const resolved = resolveTools(settings);
 
@@ -224,14 +246,22 @@ export async function detectEnvironment(settings: AppSettings): Promise<EnvRepor
     }
   }
 
-  const repo = repoScripts(settings);
+  const repo = repoScripts(settings, bundledDir);
   tools.push({
     id: 'repo',
-    label: 'ShadowMountPlus checkout',
+    label: 'exFAT builder scripts',
     requiredFor: ['exfat', 'ffpfsc'],
     found: repo.ok,
-    detail: repo.ok ? repo.repoPath : repo.detail,
-    fix: 'Needed only for exFAT-based images (the builder scripts ship with the repository). Clone it and point Settings to the checkout.',
+    detail:
+      repo.origin === 'checkout'
+        ? `checkout: ${repo.dir}`
+        : repo.origin === 'bundled'
+          ? 'bundled with the toolbox (a local checkout overrides them)'
+          : repo.detail,
+    fix:
+      repo.origin === 'missing'
+        ? 'Set the ShadowMountPlus checkout in Settings to use your own scripts, or reinstall the toolbox.'
+        : undefined,
   });
 
   if (IS_LINUX) {
@@ -278,6 +308,7 @@ export async function detectEnvironment(settings: AppSettings): Promise<EnvRepor
     isLinux: IS_LINUX,
     repoPath: settings.repoPath,
     repoOk: repo.ok,
+    repoOrigin: repo.origin,
     repoDetail: repo.detail,
     tools,
     privilege: {
