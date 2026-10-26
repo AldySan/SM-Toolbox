@@ -220,6 +220,9 @@ code,
 
 .nav-label {
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   opacity: 1;
   transition: opacity var(--motion-fast) var(--ease);
 }
@@ -271,10 +274,18 @@ code,
   padding: 18px 8px;
 }
 
+/* The rail is 58px wide, so the brand stacks vertically: the mark sits
+   centered above the expand button. (Rows must not use centered flex with
+   labels still in the flow — the invisible labels made rows wider than the
+   rail and pushed icons off the left edge of the window.) */
 .sidebar.collapsed .sidebar-brand {
-  justify-content: center;
-  gap: 4px;
+  flex-direction: column;
+  gap: 8px;
   padding: 2px 0 16px;
+}
+
+.sidebar.collapsed .brand-mark {
+  font-size: 14px;
 }
 
 .sidebar.collapsed .sidebar-toggle {
@@ -285,16 +296,16 @@ code,
   transform: rotate(180deg);
 }
 
-.sidebar.collapsed .brand-name,
 .sidebar.collapsed .nav-label,
 .sidebar.collapsed .sidebar-foot-line {
   opacity: 0;
 }
 
+/* The icon stays at the leading edge and is centered by padding alone:
+   8px rail padding + 12px + 9px (half the icon) = 29px, the rail center.
+   Labels are clipped as the rail shrinks instead of overflowing it. */
 .sidebar.collapsed .nav-item {
-  justify-content: center;
-  gap: 0;
-  padding: 7px 0;
+  padding: 7px 12px;
 }
 
 .sidebar.collapsed .nav-item.active {
@@ -303,6 +314,10 @@ code,
 
 .sidebar.collapsed .nav-item.active .nav-icon {
   color: var(--accent);
+}
+
+.sidebar.collapsed .sidebar-foot {
+  text-align: center;
 }
 
 /* ---------- View scaffolding ---------- */
@@ -1270,6 +1285,14 @@ input::placeholder {
 }
 
 .trouble-body {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Padding lives on this inner wrapper, not on the grid item: a padded grid
+   item floors at its own padding height and never collapses to zero, which
+   left a strip of half-visible text behind when a section closed. */
+.trouble-body-pad {
   padding: 0 18px 14px;
 }
 
