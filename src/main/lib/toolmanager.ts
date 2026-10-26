@@ -10,7 +10,6 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import https from 'node:https';
 import path from 'node:path';
-import AdmZip from 'adm-zip';
 import type { ReleaseAsset, ToolEvent } from '../../shared/types';
 import { findPython } from './env';
 
@@ -134,7 +133,11 @@ function downloadFile(url: string, dest: string, onProgress: (received: number, 
   });
 }
 
-function extractZip(archive: string, destDir: string): void {
+async function extractZip(archive: string, destDir: string): Promise<void> {
+  // Loaded on demand: the zip machinery is only needed while a download is
+  // being staged, and keeping it out of the startup path trims main-process
+  // boot time.
+  const { default: AdmZip } = await import('adm-zip');
   fs.mkdirSync(destDir, { recursive: true });
   new AdmZip(archive).extractAllTo(destDir, true);
 }
@@ -215,7 +218,7 @@ export async function downloadTool(
     const packageDir = path.join(toolsRoot, 'whl');
     fs.rmSync(packageDir, { recursive: true, force: true });
     emit({ tool, type: 'status', text: 'Extracting wheel…' });
-    extractZip(archivePath, packageDir);
+    await extractZip(archivePath, packageDir);
     fs.rmSync(archivePath, { force: true });
     if (!fs.existsSync(path.join(packageDir, 'mkpfs', '__init__.py'))) {
       throw new Error('The downloaded wheel did not contain the mkpfs package.');
@@ -230,7 +233,7 @@ export async function downloadTool(
   emit({ tool, type: 'status', text: 'Extracting…' });
   const extractDir = path.join(toolsRoot, 'extracted');
   fs.rmSync(extractDir, { recursive: true, force: true });
-  extractZip(archivePath, extractDir);
+  await extractZip(archivePath, extractDir);
   fs.rmSync(archivePath, { force: true });
 
   const binary = walkFiles(extractDir).find((file) => /^(ufs2tool|UFS2Tool)(\.exe)?$/i.test(path.basename(file)));
