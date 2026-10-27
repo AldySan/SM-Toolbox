@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# AppImage size optimization (see README "Build" notes).
+#
+# The @reforged/maker-appimage maker leaves the SquashFS block size at
+# mksquashfs' 128 KiB default (or pins 16 KiB for xz — AppImageTool's
+# trade-off: faster random reads, worse compression). For a download-once
+# installer like this one, 1 MiB blocks at zstd level 19 compress roughly 17%
+# smaller than the gzip default, and both stay readable everywhere that
+# matters: kernel SquashFS drivers (zstd since Linux 4.14) and the AppImage
+# type-2 runtime's built-in extractor (zlib and zstd only — xz is rejected,
+# so xz would break --appimage-extract-and-run on FUSE-less systems).
+#
+# This wrapper rewrites the maker's "-b 16384" to "-b 1M" and appends
+# "-b 1M -Xcompression-level 19" when the arguments carry no block size or
+# level of their own, then forwards everything to the real mksquashfs, which
+# it locates on PATH outside its own directory (forge.config.js puts this
+# folder first). If the maker ever changes its arguments, the wrapper degrades
+# towards a pass-through instead of fighting it.
+self="$(cd "$(dirname "$0")" && pwd)"
+args=()
+prev=""
+has_block=0
+has_level=0
+for arg in "$@"; do
+  if [[ "$prev" == "-b" && "$arg" == "16384" ]]; then
+    arg="1M"
+  fi
+  [[ "$arg" == "-b" ]] && has_block=1
+  [[ "$arg" == "-Xcompression-level" ]] && has_level=1
+  args+=("$arg")
+  prev="$arg"
+done
+if [[ $has_block -eq 0 ]]; then
+  args+=("-b" "1M")
+fi
+if [[ $has_level -eq 0 ]]; then
+  args+=("-Xcompression-level" "19")
+fi
+real=""
+IFS=: read -ra dirs <<< "$PATH"
+for d in "${dirs[@]}"; do
+  [[ "$d" == "$self" ]] && continue
+  if [[ -n "$d" && -x "$d/mksquashfs" ]]; then
+    real="$d/mksquashfs"
+    break
+  fi
+done
+if [[ -z "$real" ]]; then
+  echo "forge/mksquashfs wrapper: real mksquashfs binary not found on PATH" >&2
+  exit 127
+fi
+exec "$real" "${args[@]}"

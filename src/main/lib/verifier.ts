@@ -78,6 +78,7 @@ export async function statFolder(input: string): Promise<FolderStat | null> {
       paramInfo = {
         titleId: typeof parsed.titleId === 'string' ? parsed.titleId : undefined,
         contentId: typeof parsed.contentId === 'string' ? parsed.contentId : undefined,
+        titleName: readTitleName(parsed),
       };
     } catch {
       paramInfo = {};
@@ -98,6 +99,22 @@ export async function statFolder(input: string): Promise<FolderStat | null> {
 
 export async function countFiles(dir: string): Promise<number> {
   return (await statFolder(dir))?.fileCount ?? 0;
+}
+
+/**
+ * The display title ShadowMountPlus would show: the en-US localizedParameters
+ * entry first (its parser prefers it), then the top-level titleName.
+ */
+function readTitleName(parsed: Record<string, unknown>): string | undefined {
+  const localized = parsed.localizedParameters;
+  if (localized !== null && typeof localized === 'object' && !Array.isArray(localized)) {
+    const entry = (localized as Record<string, unknown>)['en-US'];
+    if (entry !== null && typeof entry === 'object' && !Array.isArray(entry)) {
+      const name = (entry as Record<string, unknown>).titleName;
+      if (typeof name === 'string' && name.length > 0) return name;
+    }
+  }
+  return typeof parsed.titleName === 'string' && parsed.titleName.length > 0 ? parsed.titleName : undefined;
 }
 
 /* ---------------- image verification ---------------- */

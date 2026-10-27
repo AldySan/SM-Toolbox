@@ -20,7 +20,9 @@ SM+ Toolbox supports all three image formats used by ShadowMountPlus:
 - **exFAT (`.exfat`)** — create exFAT images using the documented filesystem profile.
 - **Compressed PFS (`.ffpfsc`)** — package game files into compressed PFS containers using MkPFS.
 
-Need to prepare more than one image? Add them to the build queue and let the app process them in order. Each build starts automatically when the previous one finishes. After a successful build, the app can also verify the finished image and clean up the source folder for you — both options only run once every build step has succeeded.
+Need to prepare more than one image? Add them to the build queue and let the app process them in order. Each build starts automatically when the previous one finishes, with every tool spawned hidden in the background — no console windows popping up — while its own queue row shows live step progress and elapsed time. After a successful build, the app can also verify the finished image and clean up the source folder for you — both options only run once every build step has succeeded.
+
+You can also override what the image shows on the PS5 home screen: set a custom **title** and pick a custom **icon** on the Create view, and the app writes them into `sce_sys/param.json` (`titleName`) and `sce_sys/icon0.png` (512×512 PNG) inside the built image. Icons are decoded, center-cropped and resized automatically, and the overrides are applied to a staged hardlink copy — the source folder itself is never modified.
 
 ### Verify images before using them
 
@@ -117,6 +119,8 @@ npx electron-forge make
 ```
 
 Packaged output is written to `out/`.
+
+A few size optimizations are applied to the distributables: Chromium locale packs other than `en-US` are pruned from every package, and AppImages use zstd-compressed SquashFS with 1 MiB blocks (`forge/mksquashfs` rewrites the maker's block-size arguments), which makes the AppImage roughly 17% smaller than the gzip default while staying compatible with `--appimage-extract-and-run` on systems without FUSE. Building the AppImage requires `mksquashfs` from `squashfs-tools` on your `PATH`.
 
 There's also a headless smoke test for checking that the packaged app can start, open its window, and exit cleanly:
 
