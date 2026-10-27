@@ -18,6 +18,8 @@ import { detectEnvironment, findExecutable, builderScripts, resolveTools, type B
 import { buildSteps, jobTitle, stepsToPreview } from './lib/recipes';
 import { runJob, RunningJob } from './lib/runner';
 import { detectImage, statFolder } from './lib/verifier';
+import { removeStage, sniffImageFormat, stageAppearance, validateTitle, type StagedSource } from './lib/appearance';
+import { prepareIconFile, type PreparedIcon } from './lib/iconimage';
 import { downloadTool, listAssets } from './lib/toolmanager';
 import { fetchBuilders, localBuildersVersion, resetBuilders, shortVersion, upstreamBuildersVersion } from './lib/builders';
 import { ensurePayload, sendPayload } from './lib/payload';
@@ -49,6 +51,20 @@ const asString = (value: unknown): string => (typeof value === 'string' ? value 
 
 const jobs = new Map<string, RunningJob>();
 let jobCounter = 0;
+
+// Converted icons are cached by path + mtime + size so the form preview and
+// the later build share one conversion; bounded so entries never pile up.
+const iconCache = new Map<string, { mtimeMs: number; size: number; prepared: PreparedIcon }>();
+
+async function preparedIconCached(inputPath: string): Promise<PreparedIcon> {
+  const stat = await fs.promises.stat(inputPath); // a missing file rejects; callers surface the message
+  const hit = iconCache.get(inputPath);
+  if (hit && hit.mtimeMs === stat.mtimeMs && hit.size === stat.size) return hit.prepared;
+  const prepared = prepareIconFile(inputPath);
+  if (iconCache.size >= 8) iconCache.clear();
+  iconCache.set(inputPath, { mtimeMs: stat.mtimeMs, size: stat.size, prepared });
+  return prepared;
+}
 
 /** Settings and tool resolution computed once per context instead of once per function. */
 interface JobContext {
@@ -105,7 +121,35 @@ function prepareSpec(raw: unknown): BuildSpec {
   const dir = path.dirname(outputAbs);
   fs.mkdirSync(dir, { recursive: true });
 
-  return { ...spec, sourceDir, outputFile };
+  // PS5 appearance overrides: validate the shape early so bad input fails
+  // at enqueue time with a clear message instead of mid-queue.
+  let appearance = spec.ps5Appearance;
+  if (appearance) {
+    const rawTitle = typeof appearance.title === 'string' ? appearance.title : '';
+    const title = rawTitle.trim() ? validateTitle(rawTitle) : undefined;
+    const iconPath = asString(appearance.iconPath) || undefined;
+    if (iconPath) {
+      let stat: fs.Stats;
+      try {
+        stat = fs.statSync(iconPath);
+      } catch {
+        throw new Error(`Icon file not found: ${iconPath}`);
+      }
+      if (!stat.isFile()) throw new Error(`The icon path is not a file: ${iconPath}`);
+      const head = Buffer.alloc(12);
+      const fd = fs.openSync(iconPath, 'r');
+      try {
+        fs.readSync(fd, head, 0, head.length, 0);
+      } finally {
+        fs.closeSync(fd);
+      }
+      if (!sniffImageFormat(head)) throw new Error('The icon must be a PNG, JPEG, BMP or ICO image.');
+    }
+    appearance = { ...(title ? { title } : {}), ...(iconPath ? { iconPath } : {}) };
+    if (!appearance.title && !appearance.iconPath) appearance = undefined;
+  }
+
+  return { ...spec, sourceDir, outputFile, ps5Appearance: appearance };
 }
 
 /** Human-readable summary of a finished build's output, for auto-verify. */
@@ -141,13 +185,6 @@ async function launchJob(
   // for every other format cuts the wait before the first tool even starts.
   const needsFileCount = spec.format === 'ufs2' && (spec.inodeDensity ?? 'auto') === 'auto';
   const sourceFileCount = needsFileCount ? (await statFolder(spec.sourceDir))?.fileCount ?? 0 : 0;
-  const steps = buildSteps(spec, {
-    isWindows: IS_WINDOWS,
-    buildersDir: builders.dir,
-    mkpfs: resolved.mkpfs,
-    ufs2tool: resolved.ufs2tool,
-    sourceFileCount,
-  });
 
   const jobId = `job-${++jobCounter}`;
   // Job events go to the window that enqueued the item; when that window is
@@ -189,7 +226,45 @@ async function launchJob(
     }
   };
 
+  const stepContext = (packSourceDir?: string) => ({
+    isWindows: IS_WINDOWS,
+    buildersDir: builders.dir,
+    mkpfs: resolved.mkpfs,
+    ufs2tool: resolved.ufs2tool,
+    sourceFileCount,
+    packSourceDir,
+  });
+
+  // PS5 appearance overrides are applied to a hardlink staging copy of the
+  // source; the original folder is never modified and the copy is removed
+  // when the job settles (success, failure or cancel alike).
+  let staged: StagedSource | null = null;
+  if (spec.ps5Appearance && (spec.ps5Appearance.title || spec.ps5Appearance.iconPath)) {
+    try {
+      let iconPng: Buffer | undefined;
+      if (spec.ps5Appearance.iconPath) iconPng = (await preparedIconCached(spec.ps5Appearance.iconPath)).png;
+      staged = await stageAppearance(spec.sourceDir, { title: spec.ps5Appearance.title, iconPng });
+    } catch (error) {
+      const note = `PS5 appearance overrides failed: ${error instanceof Error ? error.message : String(error)}`;
+      const steps = buildSteps(spec, stepContext());
+      send({ jobId, type: 'start', title: jobTitle(spec), steps: steps.length });
+      send({ jobId, type: 'data', chunk: `\n${note}\n` });
+      send({ jobId, type: 'exit', code: -1, ok: false, note });
+      return { jobId, done: Promise.resolve({ code: -1, ok: false, note }) };
+    }
+  }
+
+  const steps = buildSteps(spec, stepContext(staged?.dir));
+
   send({ jobId, type: 'start', title: jobTitle(spec), steps: steps.length });
+  if (staged) {
+    const lines = staged.summary.map((line) => `  · ${line}\n`).join('');
+    send({
+      jobId,
+      type: 'data',
+      chunk: `── PS5 appearance (staged copy; the source folder is untouched) ──\n${lines}`,
+    });
+  }
 
   const running = runJob(jobId, steps, {
     privilege: settings.privilege,
@@ -219,6 +294,7 @@ async function launchJob(
     .finally(() => {
       flush();
       jobs.delete(jobId);
+      if (staged) void removeStage(staged.dir);
     });
   return { jobId, done };
 }
@@ -279,6 +355,29 @@ export function registerIpc(): void {
   );
 
   ipcMain.handle(IPC.FolderStat, (_event, target) => statFolder(asString(target)));
+
+  /* ---------- PS5 appearance ---------- */
+
+  ipcMain.handle(IPC.AppearancePrepareIcon, async (_event, raw) => {
+    const inputPath = asString(raw);
+    if (!inputPath || !fs.existsSync(inputPath)) return { ok: false, error: 'Icon file not found.' };
+    try {
+      const prepared = await preparedIconCached(inputPath);
+      return {
+        ok: true,
+        width: prepared.width,
+        height: prepared.height,
+        sourceFormat: prepared.sourceFormat,
+        cropped: prepared.cropped,
+        scaled: prepared.scaled,
+        pngSize: prepared.png.length,
+        previewDataUrl: `data:image/png;base64,${prepared.png.toString('base64')}`,
+      };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
   ipcMain.handle(IPC.JobPreview, (_event, raw) => {
     const spec = raw as BuildSpec;
     const { resolved, builders } = jobContext();

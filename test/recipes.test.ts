@@ -235,3 +235,59 @@ describe('preview and titles', () => {
     expect(jobTitle({ format: 'ufs2', sourceDir: '/x', outputFile: '/out/PPSA9.ffpkg' })).toBe('Build PPSA9.ffpkg');
   });
 });
+
+describe('ps5 appearance overrides', () => {
+  const spec: BuildSpec = {
+    format: 'ufs2',
+    sourceDir: '/games/APP',
+    outputFile: '/out/x.ffpkg',
+    ps5Appearance: { title: 'My Game', iconPath: '/pics/icon.png' },
+  };
+
+  it('prepends an informational note step', () => {
+    const steps = buildSteps(spec, linuxCtx());
+    expect(steps[0].kind).toBe('note');
+    if (steps[0].kind !== 'note') throw new Error('unreachable');
+    expect(steps[0].description).toMatch(/PS5 title\/icon/);
+    expect(steps[0].command).toContain('param.json titleName');
+    expect(steps[0].command).toContain('icon0.png');
+    expect(shellOf(steps[1]).cmd).toBe('/tools/UFS2Tool');
+  });
+
+  it('adds no note step without overrides', () => {
+    const steps = buildSteps({ format: 'ufs2', sourceDir: '/games/APP', outputFile: '/out/x.ffpkg' }, linuxCtx());
+    expect(steps.some((step) => step.kind === 'note')).toBe(false);
+  });
+
+  it('packs the staged copy while delete-source keeps the original', () => {
+    const stage = '/games/.sm-toolbox-stage-ab12cd34ef';
+    const steps = buildSteps(
+      { ...spec, deleteSourceAfterSuccess: true },
+      linuxCtx({ packSourceDir: stage }),
+    );
+    const shell = steps.find((step) => step.kind === 'shell');
+    if (!shell || shell.kind !== 'shell') throw new Error('missing shell step');
+    expect(shell.args).toContain(stage);
+    expect(shell.args).not.toContain('/games/APP');
+    const unlink = steps.find((step) => step.kind === 'unlink');
+    if (!unlink || unlink.kind !== 'unlink') throw new Error('missing unlink step');
+    expect(unlink.target).toBe('/games/APP');
+  });
+
+  it('shows the note in previews as unprivileged', () => {
+    const preview = stepsToPreview(buildSteps(spec, linuxCtx()));
+    expect(preview[0].privileged).toBe(false);
+    expect(preview[0].description).toMatch(/PS5/);
+  });
+
+  it('threads the staged copy through the exfat builder', () => {
+    const stage = '/games/.sm-toolbox-stage-ffeeddccbbaa';
+    const steps = buildSteps(
+      { format: 'exfat', sourceDir: '/games/APP', outputFile: '/out/x.exfat', ps5Appearance: { title: 'T' } },
+      linuxCtx({ packSourceDir: stage }),
+    );
+    const shell = steps.find((step) => step.kind === 'shell');
+    if (!shell || shell.kind !== 'shell') throw new Error('missing shell step');
+    expect(shell.args).toEqual(['/repo/mkexfat.sh', stage, '/out/x.exfat']);
+  });
+});

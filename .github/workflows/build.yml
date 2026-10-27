@@ -44,7 +44,7 @@ jobs:
 
       - name: Install maker prerequisites (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y rpm libfuse2
+        run: sudo apt-get update && sudo apt-get install -y rpm libfuse2 squashfs-tools
 
       - name: Make distributables
         run: npx electron-forge make

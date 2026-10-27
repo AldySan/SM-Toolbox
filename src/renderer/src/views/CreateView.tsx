@@ -5,6 +5,7 @@ import type {
   BuildSpec,
   EnvReport,
   FolderStat,
+  IconPrepResult,
   ImageFormat,
   InnerFormat,
   InodeDensity,
@@ -42,6 +43,11 @@ function formatBytes(bytes: number): string {
   return `${bytes} B`;
 }
 
+interface PickedIcon {
+  path: string;
+  info: IconPrepResult;
+}
+
 export function CreateView(props: {
   settings: AppSettings | null;
   env: EnvReport | null;
@@ -59,6 +65,10 @@ export function CreateView(props: {
   const [folderStat, setFolderStat] = useState<FolderStat | null>(null);
   const [preview, setPreview] = useState<{ title: string; steps: JobStepPreview[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ps5Title, setPs5Title] = useState('');
+  const [icon, setIcon] = useState<PickedIcon | null>(null);
+  const [iconError, setIconError] = useState<string | null>(null);
+  const [iconBusy, setIconBusy] = useState(false);
 
   const isWindows = props.env?.isWindows ?? false;
   // Post-build options are write-through settings: they persist across
@@ -85,6 +95,8 @@ export function CreateView(props: {
 
   const spec: BuildSpec | null = useMemo(() => {
     if (!sourceDir || !outputFile) return null;
+    const trimmedTitle = ps5Title.trim();
+    const appearance = trimmedTitle || icon ? { title: trimmedTitle || undefined, iconPath: icon?.path } : undefined;
     return {
       format,
       sourceDir,
@@ -95,8 +107,9 @@ export function CreateView(props: {
       keepIntermediate: format === 'ffpfsc' ? keepIntermediate : undefined,
       autoVerify,
       deleteSourceAfterSuccess: deleteSource,
+      ps5Appearance: appearance,
     };
-  }, [format, sourceDir, outputFile, innerFormat, inodeDensity, label, keepIntermediate, isWindows, autoVerify, deleteSource]);
+  }, [format, sourceDir, outputFile, innerFormat, inodeDensity, label, keepIntermediate, isWindows, autoVerify, deleteSource, ps5Title, icon]);
 
   useEffect(() => {
     if (!spec) {
@@ -127,6 +140,39 @@ export function CreateView(props: {
     if (!base) return;
     const name = `${base}${ext}`;
     setOutputFile(dir ? joinPath(dir, name) : name);
+  };
+
+  const pickIcon = async () => {
+    setError(null);
+    const picked = await smp.dialogs.pickFile({
+      title: 'Choose an icon image (square PNG works best)',
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'bmp', 'ico'] }],
+    });
+    if (!picked) return;
+    setIconBusy(true);
+    setIconError(null);
+    try {
+      const info = await smp.appearance.prepareIcon(picked);
+      if (info.ok) {
+        setIcon({ path: picked, info });
+      } else {
+        setIcon(null);
+        setIconError(info.error ?? 'The icon could not be converted.');
+      }
+    } catch (failure) {
+      setIcon(null);
+      setIconError(failure instanceof Error ? failure.message : String(failure));
+    } finally {
+      setIconBusy(false);
+    }
+  };
+
+  const iconDetail = (info: IconPrepResult): string => {
+    const parts = [`${info.sourceFormat?.toUpperCase() ?? '?'} ${info.width}×${info.height}`];
+    if (info.cropped) parts.push('center-cropped');
+    parts.push(info.scaled ? 'scaled to 512×512' : 'already 512×512');
+    parts.push(`${formatBytes(info.pngSize ?? 0)} PNG`);
+    return parts.join(' · ');
   };
 
   const missingTool = (toolId: string): boolean =>
@@ -223,6 +269,47 @@ export function CreateView(props: {
             </button>
           </div>
         )}
+
+        <div className="field">
+          <label>PS5 title &amp; icon (optional)</label>
+          <div className="appearance-block">
+            <div className="appearance-title-row">
+              <input
+                type="text"
+                value={ps5Title}
+                maxLength={128}
+                placeholder={
+                  folderStat?.paramInfo?.titleName
+                    ? `Current title: ${folderStat.paramInfo.titleName}`
+                    : 'Title shown on the PS5 home screen'
+                }
+                onChange={(event) => setPs5Title(event.target.value)}
+              />
+              <span className="field-hint">{ps5Title.length > 0 ? `${ps5Title.length}/128` : 'Leave empty to keep the current title'}</span>
+            </div>
+            <div className="appearance-icon-row">
+              <button type="button" className="btn btn-small" disabled={iconBusy} onClick={() => void pickIcon()}>
+                {iconBusy ? 'Converting…' : 'Choose icon…'}
+              </button>
+              {icon && (
+                <>
+                  <img className="icon-preview" src={icon.info.previewDataUrl} alt="Icon preview" />
+                  <span className="field-hint">{iconDetail(icon.info)}</span>
+                  <button type="button" className="btn btn-small" onClick={() => setIcon(null)}>
+                    Remove
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="field-hint">
+            Written into <span className="mono">sce_sys/param.json</span> (titleName) and{' '}
+            <span className="mono">sce_sys/icon0.png</span> (512×512 PNG) inside the built image — the source folder is
+            never modified. Non-square icons are center-cropped; the PS5 may need a restart or a reinstall before the
+            home screen refreshes a changed icon.
+          </div>
+          {iconError && <Callout tone="warn">{iconError}</Callout>}
+        </div>
 
         {format === 'ufs2' && (
           <div className="field">

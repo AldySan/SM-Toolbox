@@ -22,6 +22,8 @@ SM+ Toolbox supports all three image formats used by ShadowMountPlus:
 
 Need to prepare more than one image? Add them to the build queue and let the app process them in order. Each build starts automatically when the previous one finishes. After a successful build, the app can also verify the finished image and clean up the source folder for you — both options only run once every build step has succeeded.
 
+You can also override what the image shows on the PS5 home screen: set a custom **title** and pick a custom **icon** on the Create view, and the app writes them into `sce_sys/param.json` (`titleName`) and `sce_sys/icon0.png` (512×512 PNG) inside the built image. Icons are decoded, center-cropped and resized automatically, and the overrides are applied to a staged hardlink copy — the source folder itself is never modified.
+
 ### Verify images before using them
 
 Queue any number of images and check what each file actually contains: filesystem signatures, file extension, cluster size, and 64 KiB alignment are inspected as soon as a file is queued, with a clear verdict per image. Anything suspicious can be inspected further using UFS2Tool and MkPFS, so problems surface before the files ever reach your console.
@@ -117,6 +119,8 @@ npx electron-forge make
 ```
 
 Packaged output is written to `out/`.
+
+A few size optimizations are applied to the distributables: Chromium locale packs other than `en-US` are pruned from every package, and AppImages use zstd-compressed SquashFS with 1 MiB blocks (`forge/mksquashfs` rewrites the maker's block-size arguments), which makes the AppImage roughly 17% smaller than the gzip default while staying compatible with `--appimage-extract-and-run` on systems without FUSE. Building the AppImage requires `mksquashfs` from `squashfs-tools` on your `PATH`.
 
 There's also a headless smoke test for checking that the packaged app can start, open its window, and exit cleanly:
 
