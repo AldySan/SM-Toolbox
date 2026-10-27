@@ -193,10 +193,22 @@ export type JobEvent =
 
 export type QueueItemStatus = 'pending' | 'running' | 'done' | 'failed' | 'cancelled';
 
+/** Live progress of the item that is currently building. */
+export interface QueueProgress {
+  /** 1-based index of the step now running. */
+  step: number;
+  /** Total steps in the job. */
+  total: number;
+  /** Short human label of the running step. */
+  label: string;
+}
+
 export interface QueueItem {
   id: string;
   status: QueueItemStatus;
   addedAt: number;
+  /** Set when the item leaves the pending state and starts building. */
+  startedAt?: number;
   endedAt?: number;
   title: string;
   /** Output file name shown in the queue panel. */
@@ -205,6 +217,8 @@ export interface QueueItem {
   spec: BuildSpec;
   jobId?: string;
   note?: string;
+  /** Present while the item is building; cleared once it settles. */
+  progress?: QueueProgress;
 }
 
 export interface QueueSnapshot {

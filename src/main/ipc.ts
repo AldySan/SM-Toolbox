@@ -8,6 +8,7 @@ import type {
   AppSettings,
   BuildSpec,
   JobEvent,
+  QueueProgress,
   SendEvent,
   ToolEvent,
   ToolUpdateCheck,
@@ -179,6 +180,7 @@ function autoVerifySummary(file: string): { text: string; note: string } | null 
 async function launchJob(
   sender: BrowserWindow | null,
   spec: BuildSpec,
+  onProgress?: (progress: QueueProgress) => void,
 ): Promise<{ jobId: string; done: ReturnType<typeof runJob>['done'] }> {
   const { settings, resolved, builders } = jobContext();
   // The source walk exists purely to size the UFS2 inode table; skipping it
@@ -270,8 +272,11 @@ async function launchJob(
     privilege: settings.privilege,
     pkexecAvailable: process.platform === 'linux' && Boolean(findExecutable('pkexec')),
     runningAsRoot: typeof process.getuid === 'function' && process.getuid() === 0,
-    onStep: (index, _total, step) => {
+    onStep: (index, total, step) => {
       send({ jobId, type: 'step', index, description: step.description, command: step.command });
+      // Mirror step transitions into the queue item so every row shows its
+      // own progress without opening the terminal.
+      onProgress?.({ step: index + 1, total, label: step.description });
     },
     onData: (chunk) => send({ jobId, type: 'data', chunk }),
   });
@@ -407,7 +412,7 @@ export function registerIpc(): void {
     launcher: {
       // Specs are validated again at launch: the source or a tool may have
       // changed between enqueueing and the item's turn.
-      launch: (spec) => launchJob(queueWindow, prepareSpec(spec)),
+      launch: (spec, hooks) => launchJob(queueWindow, prepareSpec(spec), hooks.onProgress),
     },
     onChange: broadcastQueue,
   });
