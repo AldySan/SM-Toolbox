@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
-import { JobQueue } from '../src/main/lib/queue';
+import { JobQueue, type QueueLaunchHooks } from '../src/main/lib/queue';
 import type { BuildSpec, QueueSnapshot } from '../src/shared/types';
 import type { JobResult } from '../src/main/lib/runner';
 
@@ -13,18 +13,25 @@ interface Harness {
   started: string[];
   resolve: (index: number, result: JobResult) => void;
   snapshots: QueueSnapshot[];
+  /** Hooks the launcher received, one entry per started item. */
+  hooks: QueueLaunchHooks[];
 }
 
 function harness(
-  launchImpl?: (s: BuildSpec) => Promise<{ jobId: string; done: Promise<JobResult> }>,
+  launchImpl?: (s: BuildSpec, hooks: QueueLaunchHooks) => Promise<{ jobId: string; done: Promise<JobResult> }>,
 ): Harness {
   const started: string[] = [];
   const pending: Array<(result: JobResult) => void> = [];
   const snapshots: QueueSnapshot[] = [];
+  const hooks: QueueLaunchHooks[] = [];
 
-  const defaultLaunch = (s: BuildSpec): Promise<{ jobId: string; done: Promise<JobResult> }> => {
+  const defaultLaunch = (
+    s: BuildSpec,
+    itemHooks: QueueLaunchHooks,
+  ): Promise<{ jobId: string; done: Promise<JobResult> }> => {
     const index = started.length;
     started.push(s.outputFile);
+    hooks[index] = itemHooks;
     const done = new Promise<JobResult>((resolve) => {
       pending[index] = resolve;
     });
@@ -38,7 +45,7 @@ function harness(
     nextId: () => `q-${++counter}`,
   });
 
-  return { queue, started, resolve: (index, result) => pending[index]?.(result), snapshots };
+  return { queue, started, resolve: (index, result) => pending[index]?.(result), snapshots, hooks };
 }
 
 async function flush(): Promise<void> {
@@ -93,10 +100,11 @@ describe('JobQueue', () => {
 
   it('records a launcher rejection as a failed item and continues', async () => {
     let call = 0;
-    const h = harness(async (s) => {
+    const h = harness(async (s, hooks) => {
       call += 1;
       if (call === 1) throw new Error('UFS2Tool was not found');
       void s;
+      void hooks;
       return { jobId: 'job-2', done: Promise.resolve({ code: 0, ok: true }) };
     });
     h.queue.add(spec('a'), 'Build a');
@@ -149,5 +157,51 @@ describe('JobQueue', () => {
 
     expect(h.snapshots.length).toBeGreaterThanOrEqual(4); // add, running, jobId, done
     expect(h.snapshots.at(-1)?.items[0].status).toBe('done');
+  });
+
+  it('stamps startedAt and surfaces per-item progress while running', async () => {
+    const h = harness();
+    h.queue.add(spec('a'), 'Build a');
+    await flush();
+
+    const running = h.queue.snapshot().items[0];
+    expect(running.status).toBe('running');
+    expect(running.startedAt).toBeTypeOf('number');
+    expect(running.progress).toBeUndefined();
+
+    h.hooks[0].onProgress?.({ step: 2, total: 5, label: 'Creating UFS2 image' });
+    expect(h.queue.snapshot().items[0].progress).toEqual({ step: 2, total: 5, label: 'Creating UFS2 image' });
+
+    h.hooks[0].onProgress?.({ step: 5, total: 5, label: 'Finalizing' });
+    expect(h.queue.snapshot().items[0].progress?.step).toBe(5);
+  });
+
+  it('clears progress once the item settles', async () => {
+    const h = harness();
+    h.queue.add(spec('a'), 'Build a');
+    await flush();
+
+    h.hooks[0].onProgress?.({ step: 3, total: 5, label: 'Packing' });
+    h.resolve(0, { code: 1, ok: false, note: 'boom' });
+    await flush();
+
+    const item = h.queue.snapshot().items[0];
+    expect(item.status).toBe('failed');
+    expect(item.progress).toBeUndefined();
+    expect(item.endedAt).toBeTypeOf('number');
+  });
+
+  it('ignores progress events that arrive after the item settled', async () => {
+    const h = harness();
+    h.queue.add(spec('a'), 'Build a');
+    await flush();
+
+    h.resolve(0, { code: 0, ok: true });
+    await flush();
+
+    h.hooks[0].onProgress?.({ step: 4, total: 5, label: 'late' });
+    const item = h.queue.snapshot().items[0];
+    expect(item.status).toBe('done');
+    expect(item.progress).toBeUndefined();
   });
 });
