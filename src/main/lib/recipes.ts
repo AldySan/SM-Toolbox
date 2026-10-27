@@ -13,6 +13,13 @@ export interface StepContext {
   mkpfs: ToolInvocation;
   ufs2tool: ToolInvocation;
   sourceFileCount: number;
+  /**
+   * Directory the tools actually pack: the staged hardlink copy carrying the
+   * PS5 appearance overrides. Post-build steps (delete source) still use
+   * spec.sourceDir, so a requested deletion removes the original folder, not
+   * the staging copy.
+   */
+  packSourceDir?: string;
 }
 
 export type Step =
@@ -25,7 +32,8 @@ export type Step =
       env?: Record<string, string>;
       privileged: boolean;
     }
-  | { kind: 'unlink'; description: string; command: string; target: string; recursive?: boolean };
+  | { kind: 'unlink'; description: string; command: string; target: string; recursive?: boolean }
+  | { kind: 'note'; description: string; command: string };
 
 const UFS2_PROFILE = ['-O', '2', '-b', '65536', '-f', '65536', '-m', '0', '-S', '4096'];
 
@@ -74,6 +82,7 @@ function shellStep(description: string, invocation: Invocation, privileged: bool
 }
 
 function exfatShellSteps(spec: BuildSpec, ctx: StepContext): Step[] {
+  const packDir = ctx.packSourceDir ?? spec.sourceDir;
   if (ctx.isWindows) {
     const script = `${ctx.buildersDir}\\New-OsfExfatImage.ps1`;
     const args = [
@@ -85,7 +94,7 @@ function exfatShellSteps(spec: BuildSpec, ctx: StepContext): Step[] {
       '-ImagePath',
       spec.outputFile,
       '-SourceDir',
-      spec.sourceDir,
+      packDir,
       '-ForceOverwrite',
     ];
     if (spec.label) args.push('-Label', spec.label);
@@ -107,8 +116,8 @@ function exfatShellSteps(spec: BuildSpec, ctx: StepContext): Step[] {
       'Create exFAT image via mkexfat.sh',
       {
         cmd: 'bash',
-        args: [script, spec.sourceDir, spec.outputFile],
-        display: `sudo bash mkexfat.sh ${quote(spec.sourceDir)} ${quote(spec.outputFile)}`,
+        args: [script, packDir, spec.outputFile],
+        display: `sudo bash mkexfat.sh ${quote(packDir)} ${quote(spec.outputFile)}`,
       },
       true,
     ),
@@ -117,9 +126,10 @@ function exfatShellSteps(spec: BuildSpec, ctx: StepContext): Step[] {
 
 function ufs2ShellStep(spec: BuildSpec, ctx: StepContext): Step {
   const inodeBytes = resolveInodeBytes(spec, ctx);
+  const packDir = ctx.packSourceDir ?? spec.sourceDir;
   return shellStep(
     `Create UFS2 image (inode density ${inodeBytes})`,
-    invoke(ctx.ufs2tool, ['newfs', ...UFS2_PROFILE, '-i', String(inodeBytes), '-D', spec.sourceDir, spec.outputFile]),
+    invoke(ctx.ufs2tool, ['newfs', ...UFS2_PROFILE, '-i', String(inodeBytes), '-D', packDir, spec.outputFile]),
     false,
   );
 }
@@ -132,6 +142,7 @@ function packSteps(
   innerSteps: Step[],
 ): Step[] {
   const steps: Step[] = [...innerSteps];
+  const packDir = ctx.packSourceDir ?? spec.sourceDir;
 
   if (innerFormat === 'pfs') {
     steps.push(
@@ -147,7 +158,7 @@ function packSteps(
           'PS5',
           '--inode-bits',
           '32',
-          spec.sourceDir,
+          packDir,
           intermediate,
         ]),
         false,
@@ -202,18 +213,35 @@ function appendPostBuild(spec: BuildSpec, steps: Step[]): Step[] {
   return steps;
 }
 
+/** Informational step shown when the build carries PS5 title/icon overrides. */
+function appearanceNoteStep(spec: BuildSpec): Step | null {
+  const appearance = spec.ps5Appearance;
+  if (!appearance || (!appearance.title && !appearance.iconPath)) return null;
+  const bits: string[] = [];
+  if (appearance.title) bits.push('param.json titleName');
+  if (appearance.iconPath) bits.push('icon0.png (512×512 PNG)');
+  return {
+    kind: 'note',
+    description: 'Apply PS5 title/icon overrides to a staged copy of the source',
+    command: `stage: sce_sys/${bits.join(' + ')} — the source folder itself is never modified`,
+  };
+}
+
 export function buildSteps(spec: BuildSpec, ctx: StepContext): Step[] {
+  const note = appearanceNoteStep(spec);
+  const withNote = (steps: Step[]): Step[] => (note ? [note, ...steps] : steps);
   switch (spec.format) {
     case 'exfat':
-      return appendPostBuild(spec, exfatShellSteps(spec, ctx));
+      return appendPostBuild(spec, withNote(exfatShellSteps(spec, ctx)));
     case 'ufs2':
-      return appendPostBuild(spec, [ufs2ShellStep(spec, ctx)]);
+      return appendPostBuild(spec, withNote([ufs2ShellStep(spec, ctx)]));
     case 'ffpfsc': {
       const innerFormat: InnerFormat = spec.innerFormat ?? 'exfat';
       const base = spec.outputFile.replace(/\.[^.\\/]+$/, '');
       const intermediate = innerFormat === 'exfat' ? `${base}.exfat` : `${base}.dat`;
       const innerSteps = innerFormat === 'exfat' ? exfatShellSteps({ ...spec, outputFile: intermediate }, ctx) : [];
-      return packSteps(spec, ctx, innerFormat, intermediate, innerSteps);
+      // packSteps appends the post-build steps itself; only the note wraps it.
+      return withNote(packSteps(spec, ctx, innerFormat, intermediate, innerSteps));
     }
   }
 }

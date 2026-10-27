@@ -120,6 +120,8 @@ export interface FolderStat {
   paramInfo?: {
     titleId?: string;
     contentId?: string;
+    /** Current display title (en-US localizedParameters entry, else top-level titleName). */
+    titleName?: string;
   };
   fileCount: number;
   dirCount: number;
@@ -143,6 +145,19 @@ export interface InspectResult {
   output: string;
 }
 
+/**
+ * PS5 home-screen overrides for a built image. ShadowMountPlus reads the
+ * title from sce_sys/param.json (titleName, en-US entry first) and copies
+ * sce_sys/icon0.png into appmeta for the home icon; the overrides are
+ * applied to a staged hardlink copy, so the source folder is untouched.
+ */
+export interface Ps5Appearance {
+  /** New titleName written into sce_sys/param.json inside the image. */
+  title?: string;
+  /** Image file (PNG/JPEG/BMP/ICO) that becomes sce_sys/icon0.png (512×512 PNG). */
+  iconPath?: string;
+}
+
 export interface BuildSpec {
   format: ImageFormat;
   sourceDir: string;
@@ -159,6 +174,8 @@ export interface BuildSpec {
   autoVerify?: boolean;
   /** Delete the source folder after a successful build (the step never runs when any build step fails). */
   deleteSourceAfterSuccess?: boolean;
+  /** Override the title/icon the image shows on the PS5 home screen. */
+  ps5Appearance?: Ps5Appearance;
 }
 
 export interface JobStepPreview {
@@ -234,6 +251,25 @@ export interface ReleaseAsset {
   downloadUrl: string;
 }
 
+/** Result of decoding and converting an icon for the PS5 appearance override. */
+export interface IconPrepResult {
+  ok: boolean;
+  error?: string;
+  /** Source pixel dimensions. */
+  width?: number;
+  height?: number;
+  /** Sniffed source container (png/jpeg/bmp/ico). */
+  sourceFormat?: string;
+  /** The source was not square and got center-cropped. */
+  cropped?: boolean;
+  /** The source was not already 512×512 and got resized. */
+  scaled?: boolean;
+  /** Size of the converted PNG in bytes. */
+  pngSize?: number;
+  /** The converted 512×512 PNG as a data URL, for the form preview. */
+  previewDataUrl?: string;
+}
+
 export interface SmpApi {
   platform: string;
   settings: {
@@ -260,6 +296,10 @@ export interface SmpApi {
   };
   folders: {
     stat(path: string): Promise<FolderStat | null>;
+  };
+  appearance: {
+    /** Decode an icon file and convert it to the 512×512 PS5 cover PNG. */
+    prepareIcon(path: string): Promise<IconPrepResult>;
   };
   verify: {
     file(path: string): Promise<FileReport | null>;

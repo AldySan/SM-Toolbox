@@ -37,6 +37,9 @@ const api: SmpApi = {
   folders: {
     stat: (path) => ipcRenderer.invoke(IPC.FolderStat, path),
   },
+  appearance: {
+    prepareIcon: (path) => ipcRenderer.invoke(IPC.AppearancePrepareIcon, path),
+  },
   verify: {
     file: (path) => ipcRenderer.invoke(IPC.VerifyFile, path),
     inspect: (path) => ipcRenderer.invoke(IPC.VerifyInspect, path),

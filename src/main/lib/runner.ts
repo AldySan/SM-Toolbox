@@ -43,6 +43,11 @@ export function runJob(jobId: string, steps: Step[], opts: RunnerOptions): Runni
       if (cancelled) return { code: -1, ok: false, note: 'Cancelled', cancelled: true };
       const step = steps[index];
       opts.onStep(index, steps.length, step);
+      if (step.kind === 'note') {
+        // Informational step (PS5 appearance overrides): the staging copy is
+        // prepared by the caller before the runner starts; nothing to run.
+        continue;
+      }
       if (step.kind === 'unlink') {
         try {
           await fs.promises.rm(step.target, { force: true, recursive: step.recursive === true });

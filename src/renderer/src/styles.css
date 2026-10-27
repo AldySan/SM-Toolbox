@@ -1833,6 +1833,48 @@ input::placeholder {
   padding: 4px 0;
 }
 
+/* ---------- Create view PS5 appearance ---------- */
+
+/* Title input and icon picker share one block; the title keeps the standard
+   input width while the icon row lines up a preview thumbnail with its meta. */
+.appearance-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.appearance-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.appearance-title-row input {
+  flex: 1 1 auto;
+}
+
+.appearance-title-row .field-hint {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.appearance-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.icon-preview {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  object-fit: contain;
+  background: var(--bg-inset);
+  flex: 0 0 auto;
+}
+
 /* ---------- Verify view queue ---------- */
 
 /* The verify queue reuses the build-queue row styles; inside a card the rows
