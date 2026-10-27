@@ -4,16 +4,22 @@
 // state machine is pure bookkeeping; launching jobs and notifying listeners
 // are injected so the logic stays trivially testable.
 
-import type { BuildSpec, ImageFormat, QueueItem, QueueSnapshot } from '../../shared/types';
+import type { BuildSpec, ImageFormat, QueueItem, QueueProgress, QueueSnapshot } from '../../shared/types';
 import type { JobResult } from './runner';
 
 export interface QueueLauncher {
   /**
    * Start building `spec`. Rejects if the spec cannot run (missing tools,
    * vanished source, ...). Resolves with the job id and the completion
-   * promise of the underlying runner.
+   * promise of the underlying runner. `hooks.onProgress` mirrors the job's
+   * step events so the queue can show per-item progress.
    */
-  launch(spec: BuildSpec): Promise<{ jobId: string; done: Promise<JobResult> }>;
+  launch(spec: BuildSpec, hooks: QueueLaunchHooks): Promise<{ jobId: string; done: Promise<JobResult> }>;
+}
+
+export interface QueueLaunchHooks {
+  /** Called whenever the job moves to another step. */
+  onProgress?(progress: QueueProgress): void;
 }
 
 export interface JobQueueOptions {
@@ -104,11 +110,22 @@ export class JobQueue {
     if (!next) return;
 
     this.currentId = next.id;
-    this.patch(next.id, { status: 'running' });
+    this.patch(next.id, { status: 'running', startedAt: Date.now() });
     this.emit();
 
+    // Progress events arrive while the job runs; patching is guarded by the
+    // running status so a late event can never resurrect a settled item.
+    const hooks: QueueLaunchHooks = {
+      onProgress: (progress) => {
+        const item = this.items.find((candidate) => candidate.id === next.id);
+        if (!item || item.status !== 'running') return;
+        this.patch(next.id, { progress });
+        this.emit();
+      },
+    };
+
     try {
-      const { jobId, done } = await this.opts.launcher.launch(next.spec);
+      const { jobId, done } = await this.opts.launcher.launch(next.spec, hooks);
       this.patch(next.id, { jobId });
       this.emit();
       const result = await done;
@@ -116,6 +133,7 @@ export class JobQueue {
         status: result.cancelled ? 'cancelled' : result.ok ? 'done' : 'failed',
         endedAt: Date.now(),
         note: result.note,
+        progress: undefined,
       });
     } catch (error) {
       // Launcher refused to start the job (validation, spawn failure).
@@ -123,6 +141,7 @@ export class JobQueue {
         status: 'failed',
         endedAt: Date.now(),
         note: error instanceof Error ? error.message : String(error),
+        progress: undefined,
       });
     } finally {
       this.currentId = null;

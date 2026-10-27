@@ -16,6 +16,35 @@ const LINUX_PACKAGES = {
   categories: ['Utility'],
 };
 
+// The app ships English UI strings only; every other Chromium locale pack
+// (~7.7 MiB across ~50 .pak files) is dead weight in all six installers.
+// Chromium falls back to en-US when a locale file is missing.
+async function pruneLocales({ buildPath }) {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  // buildPath is <package>/resources/app; the locale packs sit two levels up.
+  const localesDir = path.join(buildPath, '..', '..', 'locales');
+  if (fs.existsSync(localesDir)) {
+    for (const name of fs.readdirSync(localesDir)) {
+      if (name.endsWith('.pak') && name !== 'en-US.pak') {
+        fs.rmSync(path.join(localesDir, name), { force: true });
+      }
+    }
+  }
+}
+
+// Put forge/ first on PATH for this process (and everything it spawns) so the
+// AppImage maker resolves forge/mksquashfs, which widens SquashFS blocks from
+// the maker's 16 KiB to 1 MiB for ~20% smaller AppImage downloads. Windows
+// never builds AppImages, so it keeps its PATH untouched.
+if (process.platform !== 'win32') {
+  const path = require('node:path');
+  const wrapperDir = path.join(__dirname, 'forge');
+  if (!process.env.PATH.split(':').includes(wrapperDir)) {
+    process.env.PATH = `${wrapperDir}:${process.env.PATH}`;
+  }
+}
+
 const config = {
   packagerConfig: {
     name: 'sm-toolbox',
@@ -26,6 +55,7 @@ const config = {
     // exFAT builder scripts from ShadowMountPlus; shipped outside the asar so
     // they can be executed directly (bash / powershell -File).
     extraResource: ['resources/builders'],
+    afterCopy: [pruneLocales],
   },
   rebuildConfig: {},
   makers: [
@@ -55,7 +85,11 @@ const config = {
     {
       name: '@reforged/maker-appimage',
       platforms: ['linux'],
-      config: { options: { name: 'sm-toolbox', bin: 'sm-toolbox' } },
+      // zstd instead of mksquashfs' gzip default: ~17% smaller downloads and
+      // supported both by every kernel since 4.14 and by the type-2 runtime's
+      // built-in extractor (which rejects xz, so xz would break no-FUSE
+      // extract-and-run). Block size and level are tuned by forge/mksquashfs.
+      config: { options: { name: 'sm-toolbox', bin: 'sm-toolbox', compressor: 'zstd' } },
     },
   ],
   plugins: [

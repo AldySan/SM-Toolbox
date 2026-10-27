@@ -13,6 +13,7 @@ export const IPC = {
   ClipboardWrite: 'clipboard:write-text',
   EnvDetect: 'env:detect',
   FolderStat: 'folder:stat',
+  AppearancePrepareIcon: 'appearance:prepare-icon',
   VerifyFile: 'verify:file',
   VerifyInspect: 'verify:inspect',
   VerifyQueueList: 'verify:queue-list',

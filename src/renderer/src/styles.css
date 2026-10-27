@@ -833,6 +833,74 @@ input::placeholder {
   margin: 0;
 }
 
+/* ---------- Queue row live progress ---------- */
+
+/* Per-row progress: each queue item tracks its own build step while the
+   tools run hidden in the background. */
+.queue-live {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 2px;
+  min-width: 0;
+}
+
+.queue-progress {
+  display: block;
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 70%, var(--panel));
+  overflow: hidden;
+}
+
+.queue-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--motion-med) var(--ease);
+}
+
+/* No step info yet (staging, validation): an indeterminate sweep instead
+   of a frozen empty bar. */
+.queue-progress.indeterminate .queue-progress-fill {
+  width: 40%;
+  animation: queue-indeterminate 1.2s var(--ease) infinite;
+}
+
+@keyframes queue-indeterminate {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(260%);
+  }
+}
+
+.queue-step {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.queue-step-label {
+  min-width: 0;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-elapsed {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- Terminal dock ---------- */
 
 .terminal {
@@ -1831,6 +1899,48 @@ input::placeholder {
 
 .postbuild-toggles .checkbox {
   padding: 4px 0;
+}
+
+/* ---------- Create view PS5 appearance ---------- */
+
+/* Title input and icon picker share one block; the title keeps the standard
+   input width while the icon row lines up a preview thumbnail with its meta. */
+.appearance-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.appearance-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.appearance-title-row input {
+  flex: 1 1 auto;
+}
+
+.appearance-title-row .field-hint {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.appearance-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.icon-preview {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  object-fit: contain;
+  background: var(--bg-inset);
+  flex: 0 0 auto;
 }
 
 /* ---------- Verify view queue ---------- */
