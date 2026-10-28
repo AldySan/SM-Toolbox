@@ -76,6 +76,11 @@ const config = {
       config: {
         options: {
           ...LINUX_PACKAGES,
+          // Upstream defaults the xz payload to level 2 (~96 MiB); level 6
+          // shaves ~8 MiB off the download at a similar CPU cost to what the
+          // deb build already pays. Level 9 would only save ~2 MiB more while
+          // multiplying build time — not worth it for CI on every push.
+          compressionLevel: 6,
           // Upstream spec template breaks with rpm 4.17+ scriptlet cwd
           // (electron/forge#3701); use the patched copy in forge/rpm-spec.ejs.
           specTemplate: 'forge/rpm-spec.ejs',
