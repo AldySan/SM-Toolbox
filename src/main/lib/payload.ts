@@ -16,10 +16,14 @@ export function cachedPayloadPath(): string {
   return path.join(app.getPath('userData'), 'payload', ELF_ASSET);
 }
 
+const API_TIMEOUT_MS = 15_000;
+
 function apiGet<T>(url: string): Promise<T> {
   return new Promise((resolve, reject) => {
-    https
-      .get(url, { headers: { 'User-Agent': 'sm-toolbox', Accept: 'application/vnd.github+json' } }, (res) => {
+    const request = https.get(
+      url,
+      { headers: { 'User-Agent': 'sm-toolbox', Accept: 'application/vnd.github+json' }, timeout: API_TIMEOUT_MS },
+      (res) => {
         if (res.statusCode !== 200) {
           res.resume();
           reject(new Error(`GitHub API request failed (${res.statusCode}) for ${url}`));
@@ -37,8 +41,12 @@ function apiGet<T>(url: string): Promise<T> {
             reject(error);
           }
         });
-      })
-      .on('error', reject);
+      },
+    );
+    // Without an idle timeout a connection that stalls mid-response would
+    // leave the Send view stuck on "Downloading…" forever.
+    request.on('timeout', () => request.destroy(new Error(`GitHub API request timed out: ${url}`)));
+    request.on('error', reject);
   });
 }
 
@@ -64,7 +72,10 @@ export async function ensurePayload(onStatus: (text: string) => void): Promise<s
   const partial = `${cached}.part`;
   await new Promise<void>((resolve, reject) => {
     const attempt = (url: string, redirects: number) => {
-      const request = https.get(url, { headers: { 'User-Agent': 'sm-toolbox' } }, (res) => {
+      const request = https.get(
+        url,
+        { headers: { 'User-Agent': 'sm-toolbox' }, timeout: 60_000 },
+        (res) => {
         if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           res.resume();
           if (redirects <= 0) {
@@ -95,6 +106,11 @@ export async function ensurePayload(onStatus: (text: string) => void): Promise<s
         res.pipe(file);
         file.on('finish', () => file.close(() => resolve()));
         file.on('error', fail);
+      });
+      // Same stall guard the tool downloader has: a silent connection death
+      // mid-download must surface as an error instead of hanging the busy state.
+      request.on('timeout', () => {
+        request.destroy(new Error(`Download stalled for more than 60s: ${url}`));
       });
       request.on('error', (error) => {
         try {
