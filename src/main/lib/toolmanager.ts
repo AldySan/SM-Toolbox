@@ -26,10 +26,14 @@ export interface ToolInstall {
   kind: 'binary' | 'whl';
 }
 
+const API_TIMEOUT_MS = 15_000;
+
 function apiGet<T>(url: string): Promise<T> {
   return new Promise((resolve, reject) => {
-    https
-      .get(url, { headers: { 'User-Agent': 'sm-toolbox', Accept: 'application/vnd.github+json' } }, (res) => {
+    const request = https.get(
+      url,
+      { headers: { 'User-Agent': 'sm-toolbox', Accept: 'application/vnd.github+json' }, timeout: API_TIMEOUT_MS },
+      (res) => {
         if (res.statusCode !== 200) {
           res.resume();
           reject(new Error(`GitHub API request failed (${res.statusCode}) for ${url}`));
@@ -47,8 +51,12 @@ function apiGet<T>(url: string): Promise<T> {
             reject(error);
           }
         });
-      })
-      .on('error', reject);
+      },
+    );
+    // The download itself has a 60s stall guard; the release lookup before it
+    // needs one too, otherwise a stalled API response hangs the same flow.
+    request.on('timeout', () => request.destroy(new Error(`GitHub API request timed out: ${url}`)));
+    request.on('error', reject);
   });
 }
 

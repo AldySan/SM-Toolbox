@@ -120,7 +120,7 @@ npx electron-forge make
 
 Packaged output is written to `out/`.
 
-A few size optimizations are applied to the distributables: Chromium locale packs other than `en-US` are pruned from every package, and AppImages use zstd-compressed SquashFS with 1 MiB blocks (`forge/mksquashfs` rewrites the maker's block-size arguments), which makes the AppImage roughly 17% smaller than the gzip default while staying compatible with `--appimage-extract-and-run` on systems without FUSE. Building the AppImage requires `mksquashfs` from `squashfs-tools` on your `PATH`.
+A few size optimizations are applied to the distributables: Chromium locale packs other than `en-US` are pruned from every package, AppImages use zstd-compressed SquashFS with 1 MiB blocks (`forge/mksquashfs` rewrites the maker's block-size arguments), which makes the AppImage roughly 17% smaller than the gzip default while staying compatible with `--appimage-extract-and-run` on systems without FUSE, and the rpm payload is compressed at xz level 6 instead of the maker's level-2 default (~8 MiB smaller download). Building the AppImage requires `mksquashfs` from `squashfs-tools` on your `PATH`.
 
 There's also a headless smoke test for checking that the packaged app can start, open its window, and exit cleanly:
 
