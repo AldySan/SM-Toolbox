@@ -645,14 +645,27 @@ export function registerIpc(): void {
       new Promise((resolve, reject) => {
         const child = spawn(cmd, args, { windowsHide: true, env: env ? { ...process.env, ...env } : process.env });
         let out = '';
+        // A wedged inspector (rare, but seen with broken container headers)
+        // would otherwise leave the Inspect button stuck on "Inspecting…"
+        // forever; the promise has to settle either way.
+        const timer = setTimeout(() => {
+          child.kill('SIGKILL');
+          reject(new Error(`The inspector did not finish within 60s: ${cmd}`));
+        }, 60_000);
         child.stdout?.on('data', (d: Buffer) => {
           out += d.toString();
         });
         child.stderr?.on('data', (d: Buffer) => {
           out += d.toString();
         });
-        child.on('error', (error) => reject(error));
-        child.on('close', () => resolve(out));
+        child.on('error', (error) => {
+          clearTimeout(timer);
+          reject(error);
+        });
+        child.on('close', () => {
+          clearTimeout(timer);
+          resolve(out);
+        });
       });
 
     if (wantsPfs && resolved.mkpfs.origin !== 'missing') {
@@ -708,7 +721,13 @@ export function registerIpc(): void {
 
     const active = sendPayload(sendId, host, port, elfPath, emit);
     sends.set(sendId, active);
-    void active.start().finally(() => sends.delete(sendId));
+    // Failures already reach the renderer through the 'failed' event; the
+    // rejection from start() must not become an unhandled rejection that can
+    // take the main process down.
+    void active
+      .start()
+      .catch(() => undefined)
+      .finally(() => sends.delete(sendId));
     return { sendId };
   });
 
