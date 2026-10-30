@@ -4,6 +4,10 @@ import type { BuildSpec, JobEvent } from '../../../shared/types';
 import { smp } from './api';
 
 const MAX_OUTPUT_CHARS = 2_000_000;
+// Finished jobs keep their (capped) output around so the user can scroll
+// back; there is no UI to dismiss them, so the list itself is capped too —
+// without this an hours-long session grows the renderer heap without bound.
+const MAX_RETAINED_JOBS = 30;
 
 export interface JobState {
   id: string;
@@ -35,20 +39,19 @@ export function useJobs() {
     const unsubscribe = smp.onJobEvent((event: JobEvent) => {
       setJobs((prev) => {
         switch (event.type) {
-          case 'start':
-            return [
-              {
-                id: event.jobId,
-                title: event.title,
-                status: 'running',
-                currentStep: 0,
-                totalSteps: event.steps,
-                stepText: '',
-                output: '',
-                startedAt: Date.now(),
-              },
-              ...prev,
-            ];
+          case 'start': {
+            const job: JobState = {
+              id: event.jobId,
+              title: event.title,
+              status: 'running',
+              currentStep: 0,
+              totalSteps: event.steps,
+              stepText: '',
+              output: '',
+              startedAt: Date.now(),
+            };
+            return [job, ...prev].slice(0, MAX_RETAINED_JOBS);
+          }
           case 'step':
             return update(prev, event.jobId, (job) => {
               const head = `\n── step ${event.index + 1}/${job.totalSteps}: ${event.description} ──\n$ ${event.command}\n`;
