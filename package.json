@@ -1,7 +1,7 @@
 {
   "name": "smp-toolbox",
   "productName": "SM+ Toolbox",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Cross-platform companion app for ShadowMountPlus: image building, verification, payload sending and troubleshooting.",
   "main": ".vite/build/index.cjs",
   "license": "GPL-3.0-or-later",

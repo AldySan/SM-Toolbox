@@ -159,7 +159,16 @@ export function sendPayload(
   emit: (event: SendEvent) => void,
 ): { start(): Promise<void>; cancel(): void } {
   let socket: net.Socket | undefined;
+  let stream: fs.ReadStream | undefined;
   let cancelled = false;
+
+  // The read stream is piped into the socket; whenever the transfer dies
+  // (socket error, idle timeout or user cancel) the stream must be destroyed
+  // too, otherwise its file descriptor stays open long after the send settled.
+  const killStream = () => {
+    stream?.destroy();
+    stream = undefined;
+  };
 
   const done = async (): Promise<void> => {
     let size: number;
@@ -172,24 +181,30 @@ export function sendPayload(
     await new Promise<void>((resolve, reject) => {
       socket = net.connect({ host, port, timeout: 8000 });
       socket.once('timeout', () => {
+        killStream();
         socket?.destroy();
         reject(new Error(`Timed out connecting to ${host}:${port}`));
       });
-      socket.once('error', (error: Error) => reject(error));
+      socket.once('error', (error: Error) => {
+        killStream();
+        reject(error);
+      });
       socket.once('connect', () => {
         emit({ sendId, type: 'connected' });
-        const stream = fs.createReadStream(elfPath);
+        stream = fs.createReadStream(elfPath);
         let sent = 0;
         stream.on('data', (chunk: Buffer) => {
           sent += chunk.length;
           emit({ sendId, type: 'progress', sent, total: size });
         });
         stream.on('error', (error: Error) => {
+          killStream();
           socket?.destroy();
           reject(error);
         });
         stream.on('end', () => {
           const activeSocket = socket;
+          stream = undefined; // completed normally; nothing left to clean up
           if (!activeSocket) {
             reject(new Error('Connection lost'));
             return;
@@ -200,6 +215,7 @@ export function sendPayload(
           });
         });
         if (!socket) {
+          killStream();
           reject(new Error('Connection lost'));
           return;
         }
@@ -225,6 +241,7 @@ export function sendPayload(
     },
     cancel() {
       cancelled = true;
+      killStream();
       socket?.destroy();
     },
   };
