@@ -261,6 +261,12 @@ function runElevatedWindows(
       clearInterval(poll);
       clearTimeout(timer);
       pump();
+      // The per-job helper files are of no use once the tail is drained;
+      // without this every elevated step would leave a log and a script
+      // behind in %TEMP%/sm-toolbox, unbounded over the app's lifetime.
+      // elevate.ps1 itself is shared and rewritten, so it stays.
+      fs.rmSync(inner, { force: true });
+      fs.rmSync(log, { force: true });
       resolve({ code });
     };
 
