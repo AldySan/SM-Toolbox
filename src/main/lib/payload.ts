@@ -189,6 +189,16 @@ export function sendPayload(
         killStream();
         reject(error);
       });
+      // Cancelling destroys the socket, and destroy() emits 'close' but never
+      // 'error'. While the write buffer is full (a slow console, the exact
+      // case a cancel answers) the read stream sits paused, so nothing else
+      // settles the promise either — without this handler a cancelled send
+      // would hang the Send view on "sending" forever and leak its entry in
+      // the active-sends map. On every other path cancelled is false (or the
+      // promise is already settled), making this a no-op.
+      socket.once('close', () => {
+        if (cancelled) reject(new Error('Cancelled'));
+      });
       socket.once('connect', () => {
         emit({ sendId, type: 'connected' });
         stream = fs.createReadStream(elfPath);
