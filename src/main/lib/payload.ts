@@ -41,6 +41,11 @@ function apiGet<T>(url: string): Promise<T> {
             reject(error);
           }
         });
+        // A reset connection mid-body only surfaces on the response object;
+        // without this the request's own 'error' never fires, the idle
+        // timeout only counts while the socket is alive, and the lookup
+        // hangs the busy state forever.
+        res.on('error', reject);
       },
     );
     // Without an idle timeout a connection that stalls mid-response would
