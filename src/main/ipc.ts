@@ -88,11 +88,15 @@ function prepareSpec(raw: unknown): BuildSpec {
   const spec = raw as BuildSpec;
   if (!spec || typeof spec !== 'object') throw new Error('Invalid job spec');
   const sourceDir = asString(spec.sourceDir);
-  const outputFile = normalizeOutput(asString(spec.outputFile), spec.format);
+  // Checked before normalizeOutput: on an empty name it appends the
+  // extension ('' -> '.exfat'), which would sneak past this very check and
+  // create a hidden dotfile in the working directory.
+  const rawOutputFile = asString(spec.outputFile);
+  if (!rawOutputFile) throw new Error('Output file is required');
+  const outputFile = normalizeOutput(rawOutputFile, spec.format);
   if (!sourceDir || !fs.existsSync(sourceDir) || !fs.statSync(sourceDir).isDirectory()) {
     throw new Error(`Source directory does not exist: ${sourceDir || '(empty)'}`);
   }
-  if (!outputFile) throw new Error('Output file is required');
 
   // Building the image inside its own source folder feeds the copy step with
   // the growing image itself (and a delete-source step would take the output
