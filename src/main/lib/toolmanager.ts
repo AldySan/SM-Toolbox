@@ -51,6 +51,11 @@ function apiGet<T>(url: string): Promise<T> {
             reject(error);
           }
         });
+        // A reset connection mid-body only surfaces on the response object;
+        // without this the lookup would hang the busy state forever (the
+        // request's own 'error' never fires for it, and the idle timeout
+        // only counts while the socket is alive).
+        res.on('error', reject);
       },
     );
     // The download itself has a 60s stall guard; the release lookup before it
