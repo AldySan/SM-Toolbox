@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
-import { buildSteps, jobTitle, resolveInodeBytes, stepsToPreview } from '../src/main/lib/recipes';
+import { applyCommandOverrides, buildSteps, jobTitle, resolveInodeBytes, stepsToPreview } from '../src/main/lib/recipes';
 import type { Step, StepContext } from '../src/main/lib/recipes';
 import type { ToolInvocation } from '../src/main/lib/env';
 import type { BuildSpec } from '../src/shared/types';
@@ -289,5 +289,82 @@ describe('ps5 appearance overrides', () => {
     const shell = steps.find((step) => step.kind === 'shell');
     if (!shell || shell.kind !== 'shell') throw new Error('missing shell step');
     expect(shell.args).toEqual(['/repo/mkexfat.sh', stage, '/out/x.exfat']);
+  });
+});
+
+describe('applyCommandOverrides', () => {
+  const spec: BuildSpec = {
+    format: 'ffpfsc',
+    sourceDir: '/games/APP',
+    outputFile: '/out/x.ffpfsc',
+    innerFormat: 'pfs',
+    keepIntermediate: true,
+    ps5Appearance: { title: 'T' },
+  };
+  // appearance note (0), mkpfs pack (1), mkpfs compress (2) — unlink skipped via keep
+  const base = buildSteps(spec, linuxCtx());
+
+  it('returns the steps untouched without overrides or with only empty lines', () => {
+    expect(applyCommandOverrides(base, undefined, false)).toBe(base);
+    expect(applyCommandOverrides(base, [], false)).toBe(base);
+    expect(applyCommandOverrides(base, [undefined, '   '], false)).toBe(base);
+  });
+
+  it('runs an edited shell step verbatim through the platform shell', () => {
+    const overridden = applyCommandOverrides(base, ['ignored-note', 'mkpfs pack --extra'], false);
+    const shell = shellOf(overridden[1]);
+    expect(shell.cmd).toBe('bash');
+    expect(shell.args).toEqual(['-c', 'mkpfs pack --extra']);
+    expect(shell.command).toBe('mkpfs pack --extra');
+    // untouched sibling keeps the generated invocation
+    expect(shellOf(overridden[2]).cmd).toBe('/tools/mkpfs');
+  });
+
+  it('wraps edited lines in PowerShell on Windows', () => {
+    const overridden = applyCommandOverrides(buildSteps(spec, winCtx()), [undefined, 'echo hi'], true);
+    const shell = shellOf(overridden[1]);
+    expect(shell.cmd).toBe('powershell.exe');
+    expect(shell.args).toEqual(['-NoProfile', '-Command', 'echo hi']);
+  });
+
+  it('preserves privilege and env of the replaced step', () => {
+    const exfat = buildSteps({ format: 'exfat', sourceDir: '/games/APP', outputFile: '/out/x.exfat' }, linuxCtx());
+    const overridden = applyCommandOverrides(exfat, ['bash /my/exfat.sh /games/APP /out/x.exfat'], false);
+    const shell = shellOf(overridden[0]);
+    expect(shell.privileged).toBe(true);
+    expect(shell.env).toBe(shellOf(exfat[0]).env);
+  });
+
+  it('keeps env of whl-based mkpfs steps so python still resolves the module', () => {
+    const whl = buildSteps(spec, linuxCtx({ mkpfs: mkpfsWhl() }));
+    const overridden = applyCommandOverrides(whl, [undefined, 'python -m mkpfs pack'], false);
+    expect(shellOf(overridden[1]).env).toEqual({ PYTHONPATH: '/data/tools/mkpfs/whl' });
+  });
+
+  it('leaves note and unlink steps alone at any index', () => {
+    const withUnlink = buildSteps({ ...spec, keepIntermediate: false }, linuxCtx());
+    const overridden = applyCommandOverrides(withUnlink, [ 'note-edit', undefined, undefined, 'rm -rf /' ], false);
+    expect(overridden[0].kind).toBe('note');
+    expect(overridden[0].command).not.toBe('note-edit');
+    const unlink = overridden.find((step) => step.kind === 'unlink');
+    if (!unlink || unlink.kind !== 'unlink') throw new Error('missing unlink step');
+    expect(unlink.target).toBe('/out/x.dat');
+  });
+
+  it('falls back to the generated command for empty override lines', () => {
+    const overridden = applyCommandOverrides(base, ['', undefined], false);
+    expect(shellOf(overridden[1]).cmd).toBe('/tools/mkpfs');
+    expect(overridden[1].command).toBe(base[1].command);
+  });
+});
+
+describe('stepsToPreview editability', () => {
+  it('marks only shell steps editable', () => {
+    const steps = buildSteps(
+      { format: 'ffpfsc', sourceDir: '/games/APP', outputFile: '/out/x.ffpfsc' },
+      linuxCtx(),
+    );
+    const preview = stepsToPreview(steps);
+    expect(preview.map((step) => step.editable)).toEqual(steps.map((step) => step.kind === 'shell'));
   });
 });

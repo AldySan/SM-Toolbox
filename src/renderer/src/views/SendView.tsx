@@ -61,15 +61,16 @@ export function SendView(props: {
     return unsubscribe;
   }, []);
 
-  const downloadPayload = async () => {
+  const downloadPayload = async (): Promise<string | null> => {
     setStatus({ phase: 'busy', text: 'Downloading the latest shadowmountplus.elf…' });
     const result = await smp.tools.downloadPayload();
     if (result.ok && result.path) {
       setElfPath(result.path);
       setStatus({ phase: 'idle' });
-    } else {
-      setStatus({ phase: 'failed', message: result.error ?? 'Download failed' });
+      return result.path;
     }
+    setStatus({ phase: 'failed', message: result.error ?? 'Download failed' });
+    return null;
   };
 
   const send = async () => {
@@ -78,14 +79,15 @@ export function SendView(props: {
       setStatus({ phase: 'failed', message: 'Enter the console IP address first.' });
       return;
     }
-    if (!elfPath) {
-      setStatus({ phase: 'failed', message: 'Pick a payload file or download it first.' });
-      return;
-    }
+    // The payload field promises "downloaded automatically on demand": an
+    // empty field means fetch the latest ShadowMountPlus release first
+    // instead of refusing to send.
+    const payload = elfPath || (await downloadPayload()) || '';
+    if (!payload) return;
     const port = props.settings?.ps5.port || 9021;
     setStatus({ phase: 'connecting' });
     try {
-      const { sendId } = await smp.send.payload({ host, port, elfPath });
+      const { sendId } = await smp.send.payload({ host, port, elfPath: payload });
       setActiveId(sendId);
       if (props.settings) {
         const recent = [host, ...(props.settings.recentHosts ?? []).filter((item) => item !== host)].slice(0, 5);
@@ -108,7 +110,9 @@ export function SendView(props: {
       <div className="view-head">
         <h1>Send payload</h1>
         <p className="sub">
-          Transfer <code>shadowmountplus.elf</code> to a jailbroken console running a payload listener on port 9021.
+          Transfer <code>shadowmountplus.elf</code> — the latest release of{' '}
+          <a href="https://github.com/drakmor/ShadowMountPlus">ShadowMountPlus</a> — to a jailbroken console running a
+          payload listener on port 9021.
         </p>
       </div>
 
@@ -157,6 +161,7 @@ export function SendView(props: {
           dialogTitle="Select shadowmountplus.elf"
           filters={[{ name: 'ELF payload', extensions: ['elf'] }]}
           placeholder="downloaded automatically on demand"
+          hint="Leave empty to fetch the latest ShadowMountPlus release automatically when sending."
           onChange={setElfPath}
         />
         <div className="run-row">
