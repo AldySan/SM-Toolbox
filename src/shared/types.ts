@@ -3,6 +3,9 @@
 
 export type ThemeMode = 'auto' | 'dark' | 'light';
 
+/** UI accent preset. 'green' is the default and matches the shipped look. */
+export type AccentColor = 'green' | 'blue' | 'purple' | 'orange' | 'pink';
+
 export type PrivilegeMode = 'auto' | 'pkexec' | 'direct';
 
 export type ImageFormat = 'exfat' | 'ufs2' | 'ffpfsc';
@@ -20,6 +23,7 @@ export interface FileFilter {
 
 export interface AppSettings {
   theme: ThemeMode;
+  accent: AccentColor;
   /** Content fingerprint of the builder scripts fetched through Tools; '' = bundled copies in use. */
   buildersVersion: string;
   toolPaths: {
@@ -176,12 +180,20 @@ export interface BuildSpec {
   deleteSourceAfterSuccess?: boolean;
   /** Override the title/icon the image shows on the PS5 home screen. */
   ps5Appearance?: Ps5Appearance;
+  /**
+   * Advanced: per-preview-step command overrides, aligned by index with the
+   * command preview. undefined = keep the generated command. Only shell steps
+   * honor overrides; note and removal steps ignore them.
+   */
+  commandOverrides?: (string | undefined)[];
 }
 
 export interface JobStepPreview {
   description: string;
   command: string;
   privileged: boolean;
+  /** Shell steps can be replaced with an edited command line; others cannot. */
+  editable: boolean;
 }
 
 export type JobEvent =

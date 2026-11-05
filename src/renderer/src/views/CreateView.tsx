@@ -69,6 +69,15 @@ export function CreateView(props: {
   const [icon, setIcon] = useState<PickedIcon | null>(null);
   const [iconError, setIconError] = useState<string | null>(null);
   const [iconBusy, setIconBusy] = useState(false);
+  const [advanced, setAdvanced] = useState(false);
+  // Editable copies of the preview commands, aligned by step index. They are
+  // re-seeded whenever the generated commands change (any build option moved)
+  // so an edit can never silently target a different step afterwards.
+  const [edits, setEdits] = useState<string[]>([]);
+  const commandSignature = preview ? preview.steps.map((step) => step.command).join('\n') : '';
+  useEffect(() => {
+    setEdits(preview ? preview.steps.map((step) => step.command) : []);
+  }, [commandSignature]);
 
   const isWindows = props.env?.isWindows ?? false;
   // Post-build options are write-through settings: they persist across
@@ -197,8 +206,16 @@ export function CreateView(props: {
   const run = async () => {
     if (!spec) return;
     setError(null);
+    // Advanced edits travel with the spec as a sparse array aligned to the
+    // preview steps; untouched steps stay undefined so the generated
+    // commands (and their launch-time values) win.
+    let overrides: BuildSpec['commandOverrides'];
+    if (advanced && preview) {
+      const sparse = edits.map((line, index) => (line === preview.steps[index]?.command ? undefined : line));
+      overrides = sparse.some((line) => line !== undefined) ? sparse : undefined;
+    }
     try {
-      await props.onEnqueue(spec);
+      await props.onEnqueue({ ...spec, commandOverrides: overrides });
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
     }
@@ -433,7 +450,13 @@ export function CreateView(props: {
 
       {preview && preview.steps.length > 0 && (
         <div className="card">
-          <h2>Command preview</h2>
+          <div className="card-head-row">
+            <h2>Command preview</h2>
+            <label className="checkbox">
+              <input type="checkbox" checked={advanced} onChange={(event) => setAdvanced(event.target.checked)} />
+              Edit commands (advanced)
+            </label>
+          </div>
           <div className="cmd-steps">
             {preview.steps.map((step, index) => (
               <div key={index} className="cmd-step">
@@ -441,10 +464,32 @@ export function CreateView(props: {
                   {step.description}
                   {step.privileged && <span className="badge">elevated</span>}
                 </div>
-                <code>{step.command}</code>
+                {advanced && step.editable ? (
+                  <input
+                    type="text"
+                    className="mono cmd-input"
+                    value={edits[index] ?? step.command}
+                    spellCheck={false}
+                    onChange={(event) => {
+                      const next = [...edits];
+                      while (next.length < preview.steps.length) next.push(preview.steps[next.length]?.command ?? '');
+                      next[index] = event.target.value;
+                      setEdits(next);
+                    }}
+                  />
+                ) : (
+                  <code>{step.command}</code>
+                )}
               </div>
             ))}
           </div>
+          {advanced && (
+            <div className="field-hint">
+              Edited commands run exactly as typed — bash -c on Linux, PowerShell on Windows — so quoting, pipes and
+              redirects behave like in a terminal. Empty lines fall back to the generated command, and changing a build
+              option above resets the edits. The toolbox cannot vouch for images built from custom commands.
+            </div>
+          )}
         </div>
       )}
     </div>
