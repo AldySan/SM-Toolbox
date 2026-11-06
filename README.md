@@ -32,7 +32,7 @@ Queue any number of images and check what each file actually contains: filesyste
 
 ### Send payloads to your console
 
-Download `shadowmountplus.elf` from within the app and send it to a payload listener on your console over TCP port `9021`. The downloaded file is cached locally for subsequent use.
+Send `shadowmountplus.elf` to a payload listener on your console over TCP port `9021`. The latest release of [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) is downloaded automatically whenever the payload field is left empty, and the downloaded file is cached locally for subsequent use.
 
 ### Keep the tools up to date
 
@@ -40,17 +40,17 @@ On startup, the app can check GitHub for a newer SM+ Toolbox release and direct 
 
 The built-in tool manager also handles downloading UFS2Tool and MkPFS, so you don't have to hunt down those dependencies yourself.
 
-When something is missing, the Home view offers a one-click setup that installs everything the app can manage in a single pass, and Settings can check those tools for newer releases.
+When something is missing, the Home view offers a one-click setup that installs everything the app can manage in a single pass, and Settings can check those tools for newer releases. Settings also covers the appearance: a dark or light theme and five accent colors for buttons, links, and highlights.
 
-![Settings view with the tool manager](docs/screenshots/settings.png)
+![Settings view with the accent color picker and the tool manager](docs/screenshots/settings.png)
 
 ### Built-in documentation
 
 Installation instructions, usage notes, and troubleshooting information from the ShadowMountPlus README are available inside the app, with search to help you find what you need.
 
-One thing worth noting: **commands aren't hidden behind the UI.** Before execution, the app previews the commands it will run, and the terminal panel shows the tools, arguments, and output as each step progresses.
+One thing worth noting: **commands aren't hidden behind the UI.** Before execution, the app previews the commands it will run, and the terminal panel shows the tools, arguments, and output as each step progresses. Advanced users can edit those command lines right in the preview: edited commands run exactly as typed (bash on Linux, PowerShell on Windows), while empty lines fall back to the generated ones.
 
-![Create view with post-build options and command preview](docs/screenshots/create.png)
+![Create view with advanced command editing, the build queue, and the terminal dock](docs/screenshots/create.png)
 
 ## Requirements
 
