@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { useEffect, useState } from 'react';
 import type {
+  AccentColor,
   AppInfo,
   AppSettings,
   EnvReport,
@@ -17,6 +18,14 @@ import { StatusDot } from '../components/StatusDot';
 
 type ToolId = 'mkpfs' | 'ufs2tool';
 type UpdateKey = ToolId | 'builders';
+
+const ACCENT_PRESETS: { value: AccentColor; label: string }[] = [
+  { value: 'green', label: 'Green' },
+  { value: 'blue', label: 'Blue' },
+  { value: 'purple', label: 'Purple' },
+  { value: 'orange', label: 'Orange' },
+  { value: 'pink', label: 'Pink' },
+];
 
 interface ToolProgress {
   text: string;
@@ -153,6 +162,24 @@ export function SettingsView(props: {
             onChange={(theme) => props.onChange({ theme })}
             ariaLabel="Theme"
           />
+        </div>
+        <div className="field">
+          <label>Accent color</label>
+          <div className="swatch-row" role="radiogroup" aria-label="Accent color">
+            {ACCENT_PRESETS.map((preset) => (
+              <button
+                key={preset.value}
+                type="button"
+                className={`swatch${settings.accent === preset.value ? ' selected' : ''}`}
+                data-accent-value={preset.value}
+                title={preset.label}
+                aria-label={preset.label}
+                aria-pressed={settings.accent === preset.value}
+                onClick={() => props.onChange({ accent: preset.value })}
+              />
+            ))}
+          </div>
+          <div className="field-hint">Colors buttons, links and highlights throughout the app. Green is the default.</div>
         </div>
       </div>
 

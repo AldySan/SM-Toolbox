@@ -251,7 +251,35 @@ export function stepsToPreview(steps: Step[]): JobStepPreview[] {
     description: step.description,
     command: step.command,
     privileged: step.kind === 'shell' ? step.privileged : false,
+    editable: step.kind === 'shell',
   }));
+}
+
+/**
+ * Advanced users: replace generated shell-step commands with edited lines.
+ * The edited line runs verbatim through the platform shell (bash -c on
+ * Linux, powershell -Command on Windows), so quoting and operators behave
+ * exactly as typed. Empty or whitespace-only lines fall back to the generated
+ * command — an emptied input must not silently skip a build step. Non-shell
+ * steps (notes, removals) ignore overrides; their indexes still line up with
+ * the preview, and privilege/env of the original step are preserved.
+ */
+export function applyCommandOverrides(
+  steps: Step[],
+  overrides: (string | undefined)[] | undefined,
+  isWindows: boolean,
+): Step[] {
+  if (!overrides || !overrides.some((line) => typeof line === 'string' && line.trim() !== '')) return steps;
+  return steps.map((step, index) => {
+    const line = overrides[index];
+    if (step.kind !== 'shell' || typeof line !== 'string' || line.trim() === '') return step;
+    return {
+      ...step,
+      command: line,
+      cmd: isWindows ? 'powershell.exe' : 'bash',
+      args: isWindows ? ['-NoProfile', '-Command', line] : ['-c', line],
+    };
+  });
 }
 
 export function quote(value: string): string {

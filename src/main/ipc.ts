@@ -16,7 +16,7 @@ import type {
 } from '../shared/types';
 import { loadSettings, saveSettings } from './lib/settings';
 import { detectEnvironment, findExecutable, builderScripts, resolveTools, type BuilderScripts, type ResolvedTools } from './lib/env';
-import { buildSteps, jobTitle, stepsToPreview } from './lib/recipes';
+import { applyCommandOverrides, buildSteps, jobTitle, stepsToPreview } from './lib/recipes';
 import { runJob, RunningJob } from './lib/runner';
 import { detectImage, statFolder } from './lib/verifier';
 import { removeStage, sniffImageFormat, stageAppearance, validateTitle, type StagedSource } from './lib/appearance';
@@ -260,7 +260,11 @@ async function launchJob(
     }
   }
 
-  const steps = buildSteps(spec, stepContext(staged?.dir));
+  const steps = applyCommandOverrides(
+    buildSteps(spec, stepContext(staged?.dir)),
+    spec.commandOverrides,
+    IS_WINDOWS,
+  );
 
   send({ jobId, type: 'start', title: jobTitle(spec), steps: steps.length });
   if (staged) {
