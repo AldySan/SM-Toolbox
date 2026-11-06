@@ -56,6 +56,57 @@
   --shadow: 0 8px 24px rgba(31, 36, 48, 0.08);
 }
 
+/* Accent presets (Settings → Appearance): override only the three accent
+   tokens per theme; semantic status colors (ok/warn/err) keep their fixed
+   meaning. 'green' is the default and simply uses the base tokens above. */
+[data-accent='blue'][data-theme='dark'] {
+  --accent: #58a6ff;
+  --accent-contrast: #071d38;
+  --accent-soft: rgba(56, 139, 253, 0.16);
+}
+
+[data-accent='blue'][data-theme='light'] {
+  --accent: #0969da;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(9, 105, 218, 0.1);
+}
+
+[data-accent='purple'][data-theme='dark'] {
+  --accent: #bc8cff;
+  --accent-contrast: #180f2b;
+  --accent-soft: rgba(188, 140, 255, 0.16);
+}
+
+[data-accent='purple'][data-theme='light'] {
+  --accent: #8250df;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(130, 80, 223, 0.1);
+}
+
+[data-accent='orange'][data-theme='dark'] {
+  --accent: #f0883e;
+  --accent-contrast: #271202;
+  --accent-soft: rgba(240, 136, 62, 0.16);
+}
+
+[data-accent='orange'][data-theme='light'] {
+  --accent: #bc4c00;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(188, 76, 0, 0.1);
+}
+
+[data-accent='pink'][data-theme='dark'] {
+  --accent: #f778ba;
+  --accent-contrast: #2e0d20;
+  --accent-soft: rgba(247, 120, 186, 0.16);
+}
+
+[data-accent='pink'][data-theme='light'] {
+  --accent: #bf3989;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(191, 57, 137, 0.1);
+}
+
 /* ---------- Base ---------- */
 
 * {
@@ -1121,6 +1172,16 @@ input::placeholder {
   word-break: break-all;
 }
 
+/* Advanced command editing: the input replaces the <code> block and keeps
+   the same visual weight so toggling the mode does not jump the layout. */
+.cmd-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .badge {
   font-size: 10px;
   font-weight: 600;
@@ -1144,6 +1205,48 @@ input::placeholder {
 
 .checkbox input {
   accent-color: var(--accent);
+}
+
+/* Accent picker swatches. One representative tone per preset; the exact
+   dark/light variants live in the token blocks above. */
+.swatch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  padding: 0;
+  cursor: pointer;
+}
+
+.swatch.selected {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.swatch[data-accent-value='green'] {
+  background: #2ea043;
+}
+
+.swatch[data-accent-value='blue'] {
+  background: #388bfd;
+}
+
+.swatch[data-accent-value='purple'] {
+  background: #8957e5;
+}
+
+.swatch[data-accent-value='orange'] {
+  background: #d18616;
+}
+
+.swatch[data-accent-value='pink'] {
+  background: #bf3989;
 }
 
 /* ---------- Home view ---------- */

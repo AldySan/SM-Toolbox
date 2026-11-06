@@ -6,6 +6,7 @@ import type { AppSettings } from '../../shared/types';
 
 const DEFAULTS: AppSettings = {
   theme: 'auto',
+  accent: 'green',
   buildersVersion: '',
   toolPaths: { mkpfs: '', ufs2tool: '' },
   toolCache: { mkpfs: '', ufs2tool: '' },

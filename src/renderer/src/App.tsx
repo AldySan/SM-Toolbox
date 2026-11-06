@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { AppInfo, AppSettings, BuildSpec, EnvReport, ThemeMode, UpdateCheckResult } from '../../shared/types';
+import type { AccentColor, AppInfo, AppSettings, BuildSpec, EnvReport, ThemeMode, UpdateCheckResult } from '../../shared/types';
 import { smp } from './lib/api';
 import { useJobs } from './lib/jobs';
 import { useQueue } from './lib/queue';
@@ -72,6 +72,7 @@ export function App() {
   }, [refreshEnv]);
 
   useTheme(settings?.theme ?? 'auto');
+  useAccent(settings?.accent ?? 'green');
 
   const updateSettings = useCallback(
     (patch: Partial<AppSettings>) => {
@@ -218,6 +219,15 @@ function useTheme(mode: ThemeMode) {
       return () => media.removeEventListener('change', apply);
     }
   }, [mode]);
+}
+
+function useAccent(accent: AccentColor) {
+  useEffect(() => {
+    // The preset only swaps the --accent tokens; semantic status colors
+    // (ok/warn/err) keep their fixed meaning. 'green' is the default and
+    // simply matches the base tokens, so no CSS block exists for it.
+    document.documentElement.dataset.accent = accent;
+  }, [accent]);
 }
 
 function HomeIcon() {
