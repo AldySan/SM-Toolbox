@@ -272,9 +272,9 @@ export function SettingsView(props: {
       <div className="card">
         <h2>Storage</h2>
         <div className="field">
-          <label>App data</label>
+          <label htmlFor="app-data-path">App data</label>
           <div className="pathfield">
-            <input type="text" className="mono" readOnly value={appInfo?.userData ?? ''} spellCheck={false} />
+            <input id="app-data-path" type="text" className="mono" readOnly value={appInfo?.userData ?? ''} spellCheck={false} />
             <button
               type="button"
               className="btn"

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import { useId } from 'react';
 import { smp } from '../lib/api';
 import type { FileFilter } from '../../../shared/types';
 
@@ -14,6 +15,7 @@ export function PathField(props: {
   hint?: string;
 }) {
   const kind = props.kind ?? 'folder';
+  const inputId = useId();
 
   const browse = async () => {
     let picked: string | null = null;
@@ -33,9 +35,10 @@ export function PathField(props: {
 
   return (
     <div className="field">
-      <label>{props.label}</label>
+      <label htmlFor={inputId}>{props.label}</label>
       <div className="pathfield">
         <input
+          id={inputId}
           type="text"
           className="mono"
           value={props.value}
