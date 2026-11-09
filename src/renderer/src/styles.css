@@ -331,7 +331,7 @@ code,
 
 /* The rail is 58px wide, so the brand stacks vertically: the mark sits
    centered above the expand button. (Rows must not use centered flex with
-   labels still in the flow — the invisible labels made rows wider than the
+   labels still in the flow: the invisible labels made rows wider than the
    rail and pushed icons off the left edge of the window.) */
 .sidebar.collapsed .sidebar-brand {
   flex-direction: column;
@@ -673,7 +673,7 @@ input::placeholder {
   background: var(--bg-inset);
 }
 
-/* The blocks callouts follow already end in their own bottom margin —
+/* The blocks callouts follow already end in their own bottom margin:
    only add the top gap after rows that do not (run-row, hints, lists). */
 .callout:first-child,
 .view-head + .callout,
@@ -1744,7 +1744,7 @@ input::placeholder {
 /* ---------- Motion ---------- */
 
 /* View transitions: the content area re-mounts on navigation (keyed by the
-   active view), so a short enter animation is enough — no exit choreography. */
+   active view), so a short enter animation is enough: no exit choreography. */
 .view-anim {
   animation: view-enter var(--motion-med) var(--ease);
 }

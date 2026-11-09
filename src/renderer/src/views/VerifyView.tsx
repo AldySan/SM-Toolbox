@@ -32,7 +32,7 @@ function formatBytes(bytes: number): string {
 /**
  * What "green" means depends on the kind: exFAT is fully validated from the
  * boot sector (cluster size + alignment), UFS2 from the superblock magic, and
- * PFS is only known from its extension — inspect it to be sure.
+ * PFS is only known from its extension: inspect it to be sure.
  */
 function verdictOf(report: FileReport): { ok: boolean; warn: boolean; label: string } {
   if (report.detected === 'ufs2') {

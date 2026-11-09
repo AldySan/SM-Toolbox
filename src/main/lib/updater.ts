@@ -38,7 +38,7 @@ export async function checkForUpdates(currentVersion: string = app.getVersion())
       },
     });
     if (response.status === 404) {
-      // No release has been published yet — not an error condition.
+      // No release has been published yet: not an error condition.
       return { status: 'none', currentVersion };
     }
     if (!response.ok) {

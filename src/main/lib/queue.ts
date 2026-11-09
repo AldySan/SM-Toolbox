@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Build queue: items are validated when added and run one at a time; when a
-// job finishes — successfully or not — the next pending item starts. The
+// job finishes (successfully or not): the next pending item starts. The
 // state machine is pure bookkeeping; launching jobs and notifying listeners
 // are injected so the logic stays trivially testable.
 

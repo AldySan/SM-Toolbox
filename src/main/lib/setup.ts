@@ -28,7 +28,7 @@ export interface SetupSummary {
   failed: { tool: ManagedTool; error: string }[];
 }
 
-/** True when the latest tag is newer — or, when tags are not semver, merely different. */
+/** True when the latest tag is newer, or, when tags are not semver, merely different. */
 export function shouldUpdate(currentTag?: string, latestTag?: string): boolean {
   if (!currentTag || !latestTag || currentTag === latestTag) return false;
   const comparison = compareVersions(currentTag, latestTag);

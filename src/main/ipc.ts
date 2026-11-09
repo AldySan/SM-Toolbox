@@ -507,7 +507,7 @@ export function registerIpc(): void {
         results.push({
           tool: 'builders',
           updateAvailable: false,
-          message: 'No builder scripts in use — fetch them below.',
+          message: 'No builder scripts in use: fetch them below.',
         });
       } else {
         const latest = await upstreamBuildersVersion();
@@ -585,7 +585,7 @@ export function registerIpc(): void {
   /* ---------- builder scripts ---------- */
 
   // Fetch just the two exFAT builder scripts from the ShadowMountPlus
-  // repository — no checkout, no clone. The bundled copies remain the
+  // repository: no checkout, no clone. The bundled copies remain the
   // fallback, so a failed fetch never breaks image building.
   ipcMain.handle(IPC.BuildersFetch, async () => {
     try {
@@ -717,7 +717,7 @@ export function registerIpc(): void {
 
     const elfPath = asString(opts?.elfPath);
     if (!elfPath || !fs.existsSync(elfPath)) {
-      throw new Error('Payload file not found — use the built-in download or pick a local shadowmountplus.elf');
+      throw new Error('Payload file not found: use the built-in download or pick a local shadowmountplus.elf');
     }
 
     const sender = BrowserWindow.fromWebContents(event.sender);
@@ -748,7 +748,7 @@ export function registerIpc(): void {
 
   /* ---------- updates ---------- */
 
-  // Never throws — network failures come back as an `error` status so they
+  // Never throws: network failures come back as an `error` status so they
   // can be surfaced only for manual checks.
   ipcMain.handle(IPC.UpdatesCheck, () => checkForUpdates());
 }

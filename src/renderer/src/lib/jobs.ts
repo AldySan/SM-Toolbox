@@ -5,7 +5,7 @@ import { smp } from './api';
 
 const MAX_OUTPUT_CHARS = 2_000_000;
 // Finished jobs keep their (capped) output around so the user can scroll
-// back; there is no UI to dismiss them, so the list itself is capped too —
+// back; there is no UI to dismiss them, so the list itself is capped too:
 // without this an hours-long session grows the renderer heap without bound.
 const MAX_RETAINED_JOBS = 30;
 

@@ -110,8 +110,8 @@ export function SendView(props: {
       <div className="view-head">
         <h1>Send payload</h1>
         <p className="sub">
-          Transfer <code>shadowmountplus.elf</code> — the latest release of{' '}
-          <a href="https://github.com/drakmor/ShadowMountPlus">ShadowMountPlus</a> — to a jailbroken console running a
+          Transfer <code>shadowmountplus.elf</code> (the latest release of{' '}
+          <a href="https://github.com/drakmor/ShadowMountPlus">ShadowMountPlus</a>) to a jailbroken console running a
           payload listener on port 9021.
         </p>
       </div>
@@ -207,7 +207,7 @@ export function SendView(props: {
         <h2>Tips</h2>
         <ul className="steps plain-list">
           <li>The console must be jailbroken with a payload listener active (for example via the browser exploit or an autoloaded listener).</li>
-          <li>If the connection times out, re-run the exploit on the console — listeners are per-boot unless autoloaded.</li>
+          <li>If the connection times out, re-run the exploit on the console: listeners are per-boot unless autoloaded.</li>
           <li>For automatic startup on every boot, add the payload to <code>autoload.txt</code> with plk-autoloader.</li>
         </ul>
       </div>
