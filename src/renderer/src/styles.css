@@ -20,11 +20,12 @@
   --bg: #0f1115;
   --bg-raised: #161a21;
   --bg-inset: #0b0d10;
+  --panel: #11141a;
   --border: #262c36;
   --border-strong: #36404e;
   --text: #e6e9ee;
   --text-dim: #9aa3b2;
-  --text-faint: #6b7480;
+  --text-faint: #8f98a5;
   --accent: #4db585;
   --accent-contrast: #06130c;
   --accent-soft: rgba(77, 181, 133, 0.14);
@@ -40,11 +41,12 @@
   --bg: #f6f7f9;
   --bg-raised: #ffffff;
   --bg-inset: #eceff3;
+  --panel: #eef0f4;
   --border: #dde1e8;
   --border-strong: #c4cbd6;
   --text: #1f2430;
   --text-dim: #57606a;
-  --text-faint: #8b949e;
+  --text-faint: #616c78;
   --accent: #1d6f4a;
   --accent-contrast: #ffffff;
   --accent-soft: rgba(29, 111, 74, 0.1);
@@ -956,7 +958,14 @@ input::placeholder {
 
 /* ---------- Terminal dock ---------- */
 
+/* The terminal keeps its dark surface in both themes, so its dimmed and
+   status colors always use the dark-theme values. Pinned by
+   test/palette.test.ts together with the theme tokens. */
 .terminal {
+  --text-faint: #8f98a5;
+  --ok: #4db585;
+  --warn: #d8a63a;
+  --err: #f2685e;
   border-top: 1px solid var(--border);
   background: var(--terminal-bg);
   display: flex;
