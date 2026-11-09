@@ -25,12 +25,12 @@
   --text: #e6e9ee;
   --text-dim: #9aa3b2;
   --text-faint: #6b7480;
-  --accent: #3fb950;
-  --accent-contrast: #07130a;
-  --accent-soft: rgba(63, 185, 80, 0.14);
-  --ok: #3fb950;
-  --warn: #d29922;
-  --err: #f85149;
+  --accent: #4db585;
+  --accent-contrast: #06130c;
+  --accent-soft: rgba(77, 181, 133, 0.14);
+  --ok: #4db585;
+  --warn: #d8a63a;
+  --err: #f2685e;
   --terminal-bg: #0a0c0f;
   --terminal-text: #c9d4e0;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -45,12 +45,12 @@
   --text: #1f2430;
   --text-dim: #57606a;
   --text-faint: #8b949e;
-  --accent: #1a7f37;
+  --accent: #1d6f4a;
   --accent-contrast: #ffffff;
-  --accent-soft: rgba(26, 127, 55, 0.1);
-  --ok: #1a7f37;
-  --warn: #9a6700;
-  --err: #cf222e;
+  --accent-soft: rgba(29, 111, 74, 0.1);
+  --ok: #1d6f4a;
+  --warn: #8a5e00;
+  --err: #c2333d;
   --terminal-bg: #0d1117;
   --terminal-text: #c9d4e0;
   --shadow: 0 8px 24px rgba(31, 36, 48, 0.08);
@@ -58,53 +58,55 @@
 
 /* Accent presets (Settings → Appearance): override only the three accent
    tokens per theme; semantic status colors (ok/warn/err) keep their fixed
-   meaning. 'green' is the default and simply uses the base tokens above. */
+   meaning. 'green' is the default and simply uses the base tokens above.
+   The values form the toolbox's own calm palette: see DESIGN.md; the
+   combinations are pinned to WCAG AA by test/palette.test.ts. */
 [data-accent='blue'][data-theme='dark'] {
-  --accent: #58a6ff;
-  --accent-contrast: #071d38;
-  --accent-soft: rgba(56, 139, 253, 0.16);
+  --accent: #6cb0f0;
+  --accent-contrast: #0a1a2e;
+  --accent-soft: rgba(108, 176, 240, 0.16);
 }
 
 [data-accent='blue'][data-theme='light'] {
-  --accent: #0969da;
+  --accent: #0a5da0;
   --accent-contrast: #ffffff;
-  --accent-soft: rgba(9, 105, 218, 0.1);
+  --accent-soft: rgba(10, 93, 160, 0.1);
 }
 
 [data-accent='purple'][data-theme='dark'] {
-  --accent: #bc8cff;
-  --accent-contrast: #180f2b;
-  --accent-soft: rgba(188, 140, 255, 0.16);
+  --accent: #b795ef;
+  --accent-contrast: #17102a;
+  --accent-soft: rgba(183, 149, 239, 0.16);
 }
 
 [data-accent='purple'][data-theme='light'] {
-  --accent: #8250df;
+  --accent: #6a44b8;
   --accent-contrast: #ffffff;
-  --accent-soft: rgba(130, 80, 223, 0.1);
+  --accent-soft: rgba(106, 68, 184, 0.1);
 }
 
 [data-accent='orange'][data-theme='dark'] {
-  --accent: #f0883e;
-  --accent-contrast: #271202;
-  --accent-soft: rgba(240, 136, 62, 0.16);
+  --accent: #ef9448;
+  --accent-contrast: #291302;
+  --accent-soft: rgba(239, 148, 72, 0.16);
 }
 
 [data-accent='orange'][data-theme='light'] {
-  --accent: #bc4c00;
+  --accent: #994806;
   --accent-contrast: #ffffff;
-  --accent-soft: rgba(188, 76, 0, 0.1);
+  --accent-soft: rgba(153, 72, 6, 0.1);
 }
 
 [data-accent='pink'][data-theme='dark'] {
-  --accent: #f778ba;
-  --accent-contrast: #2e0d20;
-  --accent-soft: rgba(247, 120, 186, 0.16);
+  --accent: #f285b8;
+  --accent-contrast: #2e0e20;
+  --accent-soft: rgba(242, 133, 184, 0.16);
 }
 
 [data-accent='pink'][data-theme='light'] {
-  --accent: #bf3989;
+  --accent: #a03a70;
   --accent-contrast: #ffffff;
-  --accent-soft: rgba(191, 57, 137, 0.1);
+  --accent-soft: rgba(160, 58, 112, 0.1);
 }
 
 /* ---------- Base ---------- */
@@ -1230,23 +1232,23 @@ input::placeholder {
 }
 
 .swatch[data-accent-value='green'] {
-  background: #2ea043;
+  background: #35926a;
 }
 
 .swatch[data-accent-value='blue'] {
-  background: #388bfd;
+  background: #3e86c5;
 }
 
 .swatch[data-accent-value='purple'] {
-  background: #8957e5;
+  background: #906cd3;
 }
 
 .swatch[data-accent-value='orange'] {
-  background: #d18616;
+  background: #c46e27;
 }
 
 .swatch[data-accent-value='pink'] {
-  background: #bf3989;
+  background: #c95f94;
 }
 
 /* ---------- Home view ---------- */
