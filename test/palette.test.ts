@@ -55,6 +55,7 @@ const THEMES: Record<Theme, Record<string, string>> = {
   dark: tokenBlock(`[data-theme='dark']`),
   light: tokenBlock(`[data-theme='light']`),
 };
+const TERMINAL = tokenBlock('.terminal');
 const PRESETS = ['green', 'blue', 'purple', 'orange', 'pink'] as const;
 
 function accentTokens(theme: Theme, preset: (typeof PRESETS)[number]): Record<string, string> {
@@ -72,17 +73,21 @@ describe('palette contrast (WCAG AA)', () => {
   it('keeps base text tokens readable on their surfaces', () => {
     for (const theme of ['dark', 'light'] as const) {
       const t = THEMES[theme];
-      const surfaces = { bg: t['--bg'], raised: t['--bg-raised'], inset: t['--bg-inset'] };
+      const surfaces = { bg: t['--bg'], raised: t['--bg-raised'], inset: t['--bg-inset'], panel: t['--panel'] };
       for (const [surfaceName, surface] of Object.entries(surfaces)) {
         expectAa(`${theme} text on ${surfaceName}`, t['--text'], surface);
         expectAa(`${theme} dim on ${surfaceName}`, t['--text-dim'], surface);
+        expectAa(`${theme} faint on ${surfaceName}`, t['--text-faint'], surface);
       }
       expectAa(`${theme} ok on bg`, t['--ok'], t['--bg']);
       expectAa(`${theme} ok on raised`, t['--ok'], t['--bg-raised']);
+      expectAa(`${theme} ok on panel`, t['--ok'], t['--panel']);
       expectAa(`${theme} warn on bg`, t['--warn'], t['--bg']);
       expectAa(`${theme} warn on raised`, t['--warn'], t['--bg-raised']);
       expectAa(`${theme} err on bg`, t['--err'], t['--bg']);
       expectAa(`${theme} err on raised`, t['--err'], t['--bg-raised']);
+      expectAa(`${theme} err on panel`, t['--err'], t['--panel']);
+      expectAa(`${theme} err on inset (danger hover)`, t['--err'], t['--bg-inset']);
     }
   });
 
@@ -111,6 +116,32 @@ describe('palette contrast (WCAG AA)', () => {
           t['--ok'],
           overRgba(a['--accent-soft'], t['--bg']),
         );
+      }
+    }
+  });
+
+  it('keeps the always-dark terminal readable in both themes', () => {
+    expect(TERMINAL['--ok']).toBe(THEMES.dark['--ok']);
+    expect(TERMINAL['--warn']).toBe(THEMES.dark['--warn']);
+    expect(TERMINAL['--err']).toBe(THEMES.dark['--err']);
+    expect(TERMINAL['--text-faint']).toBe(THEMES.dark['--text-faint']);
+
+    for (const theme of ['dark', 'light'] as const) {
+      const t = THEMES[theme];
+      const bg = t['--terminal-bg'];
+      expectAa(`${theme} terminal text on terminal bg`, t['--terminal-text'], bg);
+      expectAa(`${theme} terminal command color`, '#7ee787', bg);
+      expectAa(`${theme} t-rule faint on terminal bg`, TERMINAL['--text-faint'], bg);
+      expectAa(
+        `${theme} terminal time on head`,
+        TERMINAL['--text-faint'],
+        overRgba('rgba(255, 255, 255, 0.02)', bg),
+      );
+      expectAa(`${theme} t-note warn on terminal bg`, TERMINAL['--warn'], bg);
+      for (const status of ['--ok', '--warn', '--err'] as const) {
+        const rgb = hexToRgb(TERMINAL[status]);
+        const tint = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.14)`;
+        expectAa(`${theme} terminal chip ${status} on tint`, TERMINAL[status], overRgba(tint, bg));
       }
     }
   });
