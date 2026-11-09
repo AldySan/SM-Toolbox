@@ -170,11 +170,12 @@ export function SettingsView(props: {
               <button
                 key={preset.value}
                 type="button"
+                role="radio"
+                aria-checked={settings.accent === preset.value}
                 className={`swatch${settings.accent === preset.value ? ' selected' : ''}`}
                 data-accent-value={preset.value}
                 title={preset.label}
                 aria-label={preset.label}
-                aria-pressed={settings.accent === preset.value}
                 onClick={() => props.onChange({ accent: preset.value })}
               />
             ))}
