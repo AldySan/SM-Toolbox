@@ -1,0 +1,7 @@
+contact_links:
+  - name: ShadowMountPlus project
+    url: https://github.com/drakmor/ShadowMountPlus
+    about: For questions about ShadowMountPlus itself (the payload, mounting, the console side), please check the upstream project first.
+  - name: Support development
+    url: https://ko-fi.com/aldysan
+    about: If SM+ Toolbox has saved you time, you can support its development on Ko-fi.

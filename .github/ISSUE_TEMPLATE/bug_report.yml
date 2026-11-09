@@ -1,0 +1,70 @@
+name: Bug report
+description: Something in SM+ Toolbox is not working the way it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. The more detail you can give, the faster it can be fixed.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the problem. If an error message appeared, include its exact text.
+      placeholder: The build failed after step 2 with the message "..."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What did you do, in order? If it doesn't happen every time, say so.
+      placeholder: |
+        1. Open the Create view
+        2. Select a game folder
+        3. Click Start build
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+      placeholder: The build should finish and write the image to the output folder.
+    validations:
+      required: true
+  - type: textarea
+    id: terminal-output
+    attributes:
+      label: Terminal panel output
+      description: If the problem happened during a build, verification, or payload send, copy the relevant lines from the terminal panel at the bottom of the window. Optional, but very helpful.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Shown in Settings, next to the update check (for example 0.0.8).
+      placeholder: "0.0.8"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - Linux
+      default: 0
+    validations:
+      required: true
+  - type: input
+    id: os-details
+    attributes:
+      label: OS details
+      description: For Linux, the distribution and version (for example Ubuntu 24.04). For Windows, optional.
+      placeholder: Ubuntu 24.04
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else?
+      description: Screenshots, the image format you were building (UFS2, exFAT, compressed PFS), or anything else that might matter. Optional.
