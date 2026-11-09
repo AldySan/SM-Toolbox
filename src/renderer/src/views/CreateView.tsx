@@ -288,10 +288,11 @@ export function CreateView(props: {
         )}
 
         <div className="field">
-          <label>PS5 title &amp; icon (optional)</label>
+          <label htmlFor="ps5-title">PS5 title &amp; icon (optional)</label>
           <div className="appearance-block">
             <div className="appearance-title-row">
               <input
+                id="ps5-title"
                 type="text"
                 value={ps5Title}
                 maxLength={128}
@@ -330,8 +331,8 @@ export function CreateView(props: {
 
         {format === 'ufs2' && (
           <div className="field">
-            <label>Inode density</label>
-            <select value={inodeDensity} onChange={(event) => setInodeDensity(event.target.value as InodeDensity)}>
+            <label htmlFor="inode-density">Inode density</label>
+            <select id="inode-density" value={inodeDensity} onChange={(event) => setInodeDensity(event.target.value as InodeDensity)}>
               <option value="auto">Auto (based on file count)</option>
               <option value="262144">262144: normal dumps</option>
               <option value="131072">131072: tens of thousands of files</option>
@@ -343,8 +344,8 @@ export function CreateView(props: {
 
         {format === 'exfat' && isWindows && (
           <div className="field">
-            <label>Volume label (optional)</label>
-            <input type="text" value={label} maxLength={11} placeholder="OSFIMG" onChange={(event) => setLabel(event.target.value)} />
+            <label htmlFor="volume-label">Volume label (optional)</label>
+            <input id="volume-label" type="text" value={label} maxLength={11} placeholder="OSFIMG" onChange={(event) => setLabel(event.target.value)} />
           </div>
         )}
 

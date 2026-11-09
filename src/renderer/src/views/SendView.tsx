@@ -118,9 +118,10 @@ export function SendView(props: {
 
       <div className="card">
         <div className="field">
-          <label>Console address</label>
+          <label htmlFor="console-address">Console address</label>
           <div className="pathfield">
             <input
+              id="console-address"
               type="text"
               className="mono"
               value={hostInput || props.settings?.ps5.host || ''}
@@ -141,8 +142,9 @@ export function SendView(props: {
         </div>
 
         <div className="field">
-          <label>Port</label>
+          <label htmlFor="console-port">Port</label>
           <input
+            id="console-port"
             type="number"
             value={props.settings?.ps5.port ?? 9021}
             min={1}
