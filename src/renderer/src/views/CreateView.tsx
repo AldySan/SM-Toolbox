@@ -463,7 +463,7 @@ export function CreateView(props: {
               <div key={index} className="cmd-step">
                 <div className="cmd-step-desc">
                   {step.description}
-                  {step.privileged && <span className="badge">elevated</span>}
+                  {step.privileged && <span className="badge">Elevated</span>}
                 </div>
                 {advanced && step.editable ? (
                   <input
