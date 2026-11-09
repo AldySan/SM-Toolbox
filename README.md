@@ -1,8 +1,17 @@
-# SM+ Toolbox
+<p align="center">
+  <img src="assets/icon.png" width="120" alt="SM+ Toolbox icon" />
+</p>
 
-[![Build](https://github.com/AldySan/SM-Toolbox/actions/workflows/build.yml/badge.svg?branch=dev)](https://github.com/AldySan/SM-Toolbox/actions/workflows/build.yml)
-[![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
-[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux-lightgrey.svg)](#installation)
+<h1 align="center">SM+ Toolbox</h1>
+
+<p align="center">A desktop companion for ShadowMountPlus: build, verify, and send PS5 game images without living in a terminal.</p>
+
+<p align="center">
+  <a href="https://github.com/AldySan/SM-Toolbox/actions/workflows/build.yml"><img src="https://github.com/AldySan/SM-Toolbox/actions/workflows/build.yml/badge.svg?branch=dev" alt="Build status" /></a>
+  <a href="https://github.com/AldySan/SM-Toolbox/releases/latest"><img src="https://img.shields.io/github/v/release/AldySan/SM-Toolbox" alt="Latest release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg" alt="License: GPL-3.0-or-later" /></a>
+  <a href="#installation"><img src="https://img.shields.io/badge/platforms-Windows%20%7C%20Linux-lightgrey.svg" alt="Platforms: Windows and Linux" /></a>
+</p>
 
 SM+ Toolbox is a desktop companion for [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus), a PS5 homebrew project that lets you mount game images from external storage.
 
@@ -10,19 +19,32 @@ Building those images usually involves running commands in a terminal, handling 
 
 ![Home view](docs/screenshots/home.png)
 
+## Contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Building from source](#building-from-source)
+- [How it's built](#how-its-built)
+- [Verification and safety](#verification-and-safety)
+- [Development](#development)
+- [Contributing](#contributing)
+- [Support development](#support-development)
+- [License](#license)
+
 ## Features
 
 ### Build and manage images
 
 SM+ Toolbox supports all three image formats used by ShadowMountPlus:
 
-- **UFS2 (`.ffpkg`)** — build UFS2 filesystem images from decrypted game dumps.
-- **exFAT (`.exfat`)** — create exFAT images using the documented filesystem profile.
-- **Compressed PFS (`.ffpfsc`)** — package game files into compressed PFS containers using MkPFS.
+- **UFS2 (`.ffpkg`)**: build UFS2 filesystem images from decrypted game dumps.
+- **exFAT (`.exfat`)**: create exFAT images using the documented filesystem profile.
+- **Compressed PFS (`.ffpfsc`)**: package game files into compressed PFS containers using MkPFS.
 
-Need to prepare more than one image? Add them to the build queue and let the app process them in order. Each build starts automatically when the previous one finishes, with every tool spawned hidden in the background — no console windows popping up — while its own queue row shows live step progress and elapsed time. After a successful build, the app can also verify the finished image and clean up the source folder for you — both options only run once every build step has succeeded.
+Need to prepare more than one image? Add them to the build queue and let the app process them in order. Each build starts automatically when the previous one finishes, with every tool spawned hidden in the background (no console windows popping up) while its own queue row shows live step progress and elapsed time. After a successful build, the app can also verify the finished image and clean up the source folder for you. Both options only run once every build step has succeeded.
 
-You can also override what the image shows on the PS5 home screen: set a custom **title** and pick a custom **icon** on the Create view, and the app writes them into `sce_sys/param.json` (`titleName`) and `sce_sys/icon0.png` (512×512 PNG) inside the built image. Icons are decoded, center-cropped and resized automatically, and the overrides are applied to a staged hardlink copy — the source folder itself is never modified.
+You can also override what the image shows on the PS5 home screen: set a custom **title** and pick a custom **icon** on the Create view, and the app writes them into `sce_sys/param.json` (`titleName`) and `sce_sys/icon0.png` (512×512 PNG) inside the built image. Icons are decoded, center-cropped and resized automatically, and the overrides are applied to a staged hardlink copy, so the source folder itself is never modified.
 
 ### Verify images before using them
 
@@ -67,7 +89,7 @@ Regardless of your platform, you'll also need:
 
 - A decrypted game dump with `eboot.bin` and `sce_sys/param.json` in the root directory.
 
-The exFAT builder scripts (`mkexfat.sh` / `New-OsfExfatImage.ps1`) ship inside the app, and Settings → Tools can fetch the latest copies straight from the [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) repository — no checkout or clone is ever needed.
+The exFAT builder scripts (`mkexfat.sh` / `New-OsfExfatImage.ps1`) ship inside the app, and Settings → Tools can fetch the latest copies straight from the [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) repository, so no checkout or clone is ever needed.
 
 The app checks for the required game files before starting a build, so an incomplete source directory won't be processed.
 
@@ -83,8 +105,8 @@ No account or credentials are required to download these tools.
 Head over to the [Releases page](https://github.com/AldySan/SM-Toolbox/releases) and download the package for your platform.
 
 **Windows**
-- `SM-Toolbox-Setup.exe` — install the application normally.
-- Portable `.zip` — extract the archive and run `sm-toolbox.exe`.
+- `SM-Toolbox-Setup.exe`: install the application normally.
+- Portable `.zip`: extract the archive and run `sm-toolbox.exe`.
 
 **Linux**
 - `.AppImage`
@@ -120,7 +142,7 @@ npx electron-forge make
 
 Packaged output is written to `out/`.
 
-A few size optimizations are applied to the distributables: Chromium locale packs other than `en-US` are pruned from every package, AppImages use zstd-compressed SquashFS with 1 MiB blocks (`forge/mksquashfs` rewrites the maker's block-size arguments), which makes the AppImage roughly 17% smaller than the gzip default while staying compatible with `--appimage-extract-and-run` on systems without FUSE, and the rpm payload is compressed at xz level 6 instead of the maker's level-2 default (~8 MiB smaller download). Building the AppImage requires `mksquashfs` from `squashfs-tools` on your `PATH`.
+A few size optimizations are applied to the distributables: Chromium locale packs other than `en-US` are pruned from every package, AppImages use zstd-compressed SquashFS with 1 MiB blocks (`forge/mksquashfs` rewrites the maker's block-size arguments), which makes the AppImage roughly 17% smaller than the gzip default while staying compatible with `--appimage-extract-and-run` on systems without FUSE, and the rpm payload is compressed at xz level 6 instead of the maker's level-2 default (about 8 MiB smaller download). Building the AppImage requires `mksquashfs` from `squashfs-tools` on your `PATH`.
 
 There's also a headless smoke test for checking that the packaged app can start, open its window, and exit cleanly:
 
@@ -130,7 +152,7 @@ There's also a headless smoke test for checking that the packaged app can start,
 
 This is the same basic check used by CI on every commit.
 
-`npm install` may print three deprecation warnings — `glob@7`, `inflight@1`, `rimraf@2` — pulled in transitively by Electron's own packaging tools (`electron-winstaller`, `electron-installer-common`, both already at their latest versions). They are build-time-only dependencies, nothing deprecated ships inside the app, and the newer majors of those packages drop callback-style APIs those tools still require, so overriding them would break the Windows installer and the deb/rpm makers. Every Electron Forge project that ships those installers sees the same lines.
+`npm install` may print three deprecation warnings (`glob@7`, `inflight@1`, `rimraf@2`) pulled in transitively by Electron's own packaging tools (`electron-winstaller`, `electron-installer-common`, both already at their latest versions). They are build-time-only dependencies, nothing deprecated ships inside the app, and the newer majors of those packages drop callback-style APIs those tools still require, so overriding them would break the Windows installer and the deb/rpm makers. Every Electron Forge project that ships those installers sees the same lines.
 
 ## How it's built
 
@@ -185,20 +207,34 @@ These checks don't replace testing on your console, but they help catch several 
 
 ## Development
 
-A few conventions used in this repository:
+A quick tour of the conventions used in this repository:
 
 - **Commit messages:** follow Conventional Commits.
 - **Pull requests:** target `dev`; `main` tracks releases.
-- **CI:** `.github/workflows/build.yml` builds and smoke-tests the app on `ubuntu-latest` and `windows-latest` for pushes and pull requests. Tagged releases matching `v*` also receive Windows and Linux distributables.
+- **CI:** `.github/workflows/build.yml` builds and smoke-tests the app on Ubuntu and Windows for every push and pull request. Tagged releases matching `v*` also receive Windows and Linux distributables.
 - **Tests:** run with Vitest via `npm test`. The suite covers build recipes, image detection, the build and verification queue state machines, semantic-version comparison, and the one-click setup planner. These tests don't require network access or an Electron runtime.
+
+New to the project? [CONTRIBUTING.md](CONTRIBUTING.md) walks through the full workflow, from cloning the repository to opening a pull request.
 
 ## Contributing
 
-Bug reports, suggestions, and pull requests are welcome.
+Bug reports, suggestions, and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, and please keep the [code of conduct](CODE_OF_CONDUCT.md) in mind when taking part in discussions.
 
 If you're adding support for another tool, follow the existing `ToolInvocation` pattern (`command`, `prefix`, `env`, and `origin`). This keeps new integrations compatible with tool overrides, PATH detection, and the built-in tool manager.
 
 For larger changes, opening an issue first is a good way to discuss the approach before putting in the work.
+
+## Support development
+
+SM+ Toolbox is free, open source, and built in spare time. If it has saved you an evening of terminal work, here are a few easy ways to say thanks:
+
+- **Give the repository a star.** It's one click for you and a meaningful signal that the project is worth keeping alive.
+- **Spread the word.** Share the repository with anyone who might need it: forums, group chats, or a friend with a PS5 and a stack of game dumps.
+- **Leave a tip on Ko-Fi.** Donations fund the coffee behind late-night debugging: [ko-fi.com/aldysan](https://ko-fi.com/aldysan)
+
+<a href="https://ko-fi.com/aldysan"><img src="https://img.shields.io/badge/Ko--fi-support%20development-FF5E5B?logo=kofi&logoColor=white" alt="Support development on Ko-fi" /></a>
+
+Every one of these is appreciated, and none of them is required. The app stays free either way.
 
 ## License
 
