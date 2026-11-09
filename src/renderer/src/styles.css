@@ -560,11 +560,12 @@ select {
   padding: 6px 10px;
 }
 
+/* Inputs keep the global :focus-visible ring; the accent border is an
+   additional cue, not a replacement. */
 input[type='text']:focus,
 input[type='number']:focus,
 select:focus {
   border-color: var(--accent);
-  outline: none;
 }
 
 input.mono {
