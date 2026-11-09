@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Verification queue: many images can be queued at once and are checked one
-// after another. Pure bookkeeping, mirroring JobQueue — the actual header
+// after another. Pure bookkeeping, mirroring JobQueue: the actual header
 // check is injected as a launcher so the logic stays unit-testable.
 
 import type { FileReport, VerifyItem, VerifySnapshot } from '../../shared/types';

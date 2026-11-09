@@ -35,7 +35,7 @@ export function GuideView() {
       </div>
 
       <div className="card">
-        <h2>Method 1 — send the payload once</h2>
+        <h2>Method 1: send the payload once</h2>
         <p>
           Send <code>shadowmountplus.elf</code> to port <code>9021</code> with any payload sender. The Send tab in this
           app does exactly that: it downloads the latest release ELF and streams it to the console over your LAN. Wait
@@ -45,7 +45,7 @@ export function GuideView() {
       </div>
 
       <div className="card">
-        <h2>Method 2 — PLK autoloader (recommended)</h2>
+        <h2>Method 2: PLK autoloader (recommended)</h2>
         <p>
           Add ShadowMountPlus to your <code>autoload.txt</code> for plk-autoloader so it starts on every boot:
         </p>
@@ -60,7 +60,7 @@ kstuff.elf`}</pre>
 
       <div className="card">
         <h2>Where to put your games</h2>
-        <p>Default scan locations — the payload watches all of these and mounts whatever it finds:</p>
+        <p>Default scan locations: the payload watches all of these and mounts whatever it finds:</p>
         <ul className="mono-list">
           {SCAN_PATHS.map((entry) => (
             <li key={entry}>{entry}</li>
@@ -85,7 +85,7 @@ kstuff.elf`}</pre>
         <p>
           Games that live outside the scan paths can be listed in <code>/data/shadowmount/manual.lst</code>, one source
           per line: a game folder path (with <code>sce_sys/param.json</code> inside) or a supported image file. Empty
-          lines and <code>#</code> comments are ignored, and the file is watched — saving it triggers a rescan.
+          lines and <code>#</code> comments are ignored, and the file is watched: saving it triggers a rescan.
         </p>
         <pre className="code-block">{`/mnt/usb0/MyGames/PPSA12345
 /mnt/usb0/images/PPSA54321.ffpkg
@@ -96,11 +96,11 @@ kstuff.elf`}</pre>
         <h2>Choosing an image format</h2>
         <dl className="kv">
           <dt>.ffpkg (UFS2)</dt>
-          <dd>Recommended default for most games — best overall performance on internal storage.</dd>
+          <dd>Recommended default for most games: best overall performance on internal storage.</dd>
           <dt>.exfat (exFAT)</dt>
           <dd>For titles that need external-drive-style compatibility. Always build with 64 KiB clusters.</dd>
           <dt>.ffpfsc (compressed PFS)</dt>
-          <dd>Nested-image container using zLib. Roughly 150–250 MB/s throughput — fine for slower or archival games, risky for heavy streamers.</dd>
+          <dd>Nested-image container using zLib. Roughly 150–250 MB/s throughput: fine for slower or archival games, risky for heavy streamers.</dd>
           <dt>.ffpfs (PFS)</dt>
           <dd>Experimental standalone PFS images.</dd>
         </dl>
@@ -124,7 +124,7 @@ kstuff.elf`}</pre>
           <dt>language</dt>
           <dd>Notification locale, or auto to follow the console language.</dd>
           <dt>api_bind_address / api_port</dt>
-          <dd>The built-in HTTP/JSON API listener (default 127.0.0.1:10101 — console-local only).</dd>
+          <dd>The built-in HTTP/JSON API listener (default 127.0.0.1:10101, console-local only).</dd>
           <dt>persistent_image_mounts</dt>
           <dd>1 keeps discovered images mounted between game launches (default 0).</dd>
         </dl>

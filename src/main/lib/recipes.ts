@@ -196,7 +196,7 @@ function packSteps(
 }
 
 /**
- * Post-build steps run only after every build step succeeded — the runner
+ * Post-build steps run only after every build step succeeded: the runner
  * stops at the first failure, so a failed or cancelled build never deletes
  * the source folder.
  */
@@ -223,7 +223,7 @@ function appearanceNoteStep(spec: BuildSpec): Step | null {
   return {
     kind: 'note',
     description: 'Apply PS5 title/icon overrides to a staged copy of the source',
-    command: `stage: sce_sys/${bits.join(' + ')} — the source folder itself is never modified`,
+    command: `stage: sce_sys/${bits.join(' + ')} (the source folder itself is never modified)`,
   };
 }
 
@@ -260,7 +260,7 @@ export function stepsToPreview(steps: Step[]): JobStepPreview[] {
  * The edited line runs verbatim through the platform shell (bash -c on
  * Linux, powershell -Command on Windows), so quoting and operators behave
  * exactly as typed. Empty or whitespace-only lines fall back to the generated
- * command — an emptied input must not silently skip a build step. Non-shell
+ * command: an emptied input must not silently skip a build step. Non-shell
  * steps (notes, removals) ignore overrides; their indexes still line up with
  * the preview, and privilege/env of the original step are preserved.
  */

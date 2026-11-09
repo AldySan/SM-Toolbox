@@ -250,7 +250,7 @@ export function SettingsView(props: {
             />
             <div className="field-hint">
               {env.privilege.pkexecAvailable
-                ? 'pkexec detected — privileged steps raise a polkit prompt when they are not already running as root.'
+                ? 'pkexec detected: privileged steps raise a polkit prompt when they are not already running as root.'
                 : 'pkexec was not found. Privileged steps run directly and need a root shell or passwordless sudo.'}
             </div>
           </div>
@@ -315,7 +315,7 @@ export function SettingsView(props: {
             {!checking && updateInfo && <UpdateStatus result={updateInfo} />}
           </div>
           <div className="field-hint">
-            Releases are published on GitHub — the app points you at them but never installs anything on its own.
+            Releases are published on GitHub: the app points you at them but never installs anything on its own.
           </div>
         </div>
       </div>
@@ -323,7 +323,7 @@ export function SettingsView(props: {
       <div className="card">
         <h2>About</h2>
         <p>
-          SM+ Toolbox {appInfo ? `v${appInfo.version}` : ''} — part of the ShadowMountPlus project, licensed
+          SM+ Toolbox {appInfo ? `v${appInfo.version}` : ''}, part of the ShadowMountPlus project, licensed
           GPL-3.0-or-later.
         </p>
         <p className="links">
@@ -336,7 +336,7 @@ export function SettingsView(props: {
   );
 }
 
-/** exFAT builder scripts — fetched straight from the ShadowMountPlus repo, bundled copies as fallback. */
+/** exFAT builder scripts: fetched straight from the ShadowMountPlus repo, bundled copies as fallback. */
 function BuildersRow(props: {
   check?: { found: boolean; detail?: string };
   origin?: 'downloaded' | 'bundled' | 'missing';
@@ -408,7 +408,7 @@ function BuildersRow(props: {
         </div>
       )}
       <div className="field-hint">
-        mkexfat.sh and New-OsfExfatImage.ps1 are fetched straight from the ShadowMountPlus repository — no checkout
+        mkexfat.sh and New-OsfExfatImage.ps1 are fetched straight from the ShadowMountPlus repository: no checkout
         needed. The toolbox bundles its own copies and falls back to them.
       </div>
       {error && <div className="field-hint error-text">{error}</div>}
@@ -421,12 +421,12 @@ function UpdateStatus(props: { result: UpdateCheckResult }) {
   if (result.status === 'available') {
     return (
       <span className="update-status available">
-        Update available — <a href={result.releaseUrl}>{result.latestVersion}</a>
+        Update available: <a href={result.releaseUrl}>{result.latestVersion}</a>
       </span>
     );
   }
   if (result.status === 'up-to-date') {
-    return <span className="update-status">Up to date — v{result.currentVersion}</span>;
+    return <span className="update-status">Up to date: v{result.currentVersion}</span>;
   }
   if (result.status === 'none') {
     return <span className="update-status">No releases have been published yet</span>;
@@ -504,7 +504,7 @@ function ToolRow(props: {
         value={props.override}
         kind="file"
         dialogTitle={`Locate ${props.label}`}
-        placeholder="optional — auto-detected when empty"
+        placeholder="optional: auto-detected when empty"
         onChange={props.onOverride}
       />
       {props.progress && (
@@ -520,7 +520,7 @@ function ToolRow(props: {
           <span className="field-hint">
             {props.progress.text}
             {props.progress.total > 0 &&
-              ` — ${Math.round(props.progress.received / 1024 / 1024)} / ${Math.round(props.progress.total / 1024 / 1024)} MiB`}
+              ` · ${Math.round(props.progress.received / 1024 / 1024)} / ${Math.round(props.progress.total / 1024 / 1024)} MiB`}
           </span>
         </div>
       )}

@@ -125,7 +125,7 @@ export function builderScripts(downloadedDir?: string, bundledDir?: string): Bui
     dir: '',
     origin: 'missing',
     ok: false,
-    detail: `No ${script} found (the bundled copy is missing — reinstall the toolbox)`,
+    detail: `No ${script} found (the bundled copy is missing: reinstall the toolbox)`,
   };
 }
 
@@ -156,7 +156,7 @@ function isWhlDir(dir: string): boolean {
 export function resolveTools(settings: AppSettings): ResolvedTools {
   // Both tools use the same precedence: manual override > copy downloaded
   // through the toolbox > system PATH. A toolbox download must win over a
-  // stale PATH copy — otherwise "Download latest" would appear to do nothing
+  // stale PATH copy: otherwise "Download latest" would appear to do nothing
   // whenever the tool also exists on the PATH.
   // Overrides must point at an executable file; a directory or a stale path
   // would otherwise surface later as a confusing "Failed to start" spawn error.

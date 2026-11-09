@@ -188,10 +188,10 @@ export function detectImage(file: string): FileReport | null {
     clusterSize = exfat.clusterSize;
     notes.push('exFAT boot sector found (jump EB 76 90 + "EXFAT" OEM).');
     if (clusterSize === 65536) {
-      notes.push('Cluster size is 64 KiB — matches the LVD type-5 / BFS fast-path profile.');
+      notes.push('Cluster size is 64 KiB: matches the LVD type-5 / BFS fast-path profile.');
     } else if (clusterSize > 0) {
       notes.push(
-        `Cluster size is ${clusterSize / 1024} KiB — the documented builders always use 64 KiB; rebuild the image if you need the fast path.`,
+        `Cluster size is ${clusterSize / 1024} KiB: the documented builders always use 64 KiB; rebuild the image if you need the fast path.`,
       );
     }
   } else if (header && header.length >= UFS2_SB_OFFSET + 4) {
@@ -209,7 +209,7 @@ export function detectImage(file: string): FileReport | null {
       notes.push('UFS2 superblock magic 0x19540119 at offset 0x1055C.');
     } else if (legacyMagic === UFS1_MAGIC) {
       detected = 'ufs1';
-      notes.push('UFS1 superblock magic 0x011954 — ShadowMountPlus expects UFS2 (.ffpkg).');
+      notes.push('UFS1 superblock magic 0x011954: ShadowMountPlus expects UFS2 (.ffpkg).');
     }
   }
 

@@ -140,7 +140,7 @@ export function App() {
                 <a
                   className={settings?.sidebarCollapsed ? 'update-badge dot-only' : 'update-badge'}
                   href={updateInfo.releaseUrl}
-                  title={`Version ${updateInfo.latestVersion} is available — open the release page`}
+                  title={`Version ${updateInfo.latestVersion} is available: open the release page`}
                 >
                   {settings?.sidebarCollapsed ? (
                     <span className="update-dot" aria-hidden="true" />
