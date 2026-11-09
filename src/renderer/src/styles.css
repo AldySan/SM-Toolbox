@@ -145,6 +145,22 @@ a:hover {
   text-decoration: underline;
 }
 
+/* In-app view switches are buttons, not document navigation: they look like
+   links without pretending to have a destination. */
+.link-button {
+  font: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
 code,
 .mono {
   font-family: var(--mono);

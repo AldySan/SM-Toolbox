@@ -157,15 +157,9 @@ export function HomeView(props: {
         {!detecting && !allReady && !missingManaged && (
           <p className="field-hint">
             The remaining pieces are system tools this toolbox cannot install for you.{' '}
-            <a
-              href=""
-              onClick={(event) => {
-                event.preventDefault();
-                props.onNavigate('settings');
-              }}
-            >
+            <button type="button" className="link-button" onClick={() => props.onNavigate('settings')}>
               Settings
-            </a>{' '}
+            </button>{' '}
             lists what is missing and how to install it. exFAT also relies on the builder scripts bundled with this app
             as well: Settings → Tools can fetch newer copies straight from the ShadowMountPlus repository.
           </p>
