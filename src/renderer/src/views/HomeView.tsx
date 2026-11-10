@@ -68,7 +68,7 @@ export function HomeView(props: {
           </p>
           <h1>Turn game dumps into console-ready images.</h1>
           <p className="sub">
-            Create UFS2, exFAT or compressed PFS images, verify them, and send the payload to your PS5 — without
+            Create UFS2, exFAT or compressed PFS images, verify them, and send the payload to your PS5, without
             living in a terminal.
           </p>
         </div>
@@ -156,18 +156,12 @@ export function HomeView(props: {
         {!setupRunning && setupSummary && <SetupResult summary={setupSummary} />}
         {!detecting && !allReady && !missingManaged && (
           <p className="field-hint">
-            The remaining pieces are system tools this toolbox cannot install for you —{' '}
-            <a
-              href=""
-              onClick={(event) => {
-                event.preventDefault();
-                props.onNavigate('settings');
-              }}
-            >
+            The remaining pieces are system tools this toolbox cannot install for you.{' '}
+            <button type="button" className="link-button" onClick={() => props.onNavigate('settings')}>
               Settings
-            </a>{' '}
+            </button>{' '}
             lists what is missing and how to install it. exFAT also relies on the builder scripts bundled with this app
-            — Settings → Tools can fetch newer copies straight from the ShadowMountPlus repository.
+            as well: Settings → Tools can fetch newer copies straight from the ShadowMountPlus repository.
           </p>
         )}
       </section>

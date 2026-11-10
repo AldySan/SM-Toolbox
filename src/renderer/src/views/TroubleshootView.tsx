@@ -18,7 +18,7 @@ const SECTIONS: Section[] = [
       'Enable debug logging if it is off: set debug=1 in /data/shadowmount/config.ini. The log lives at /data/shadowmount/debug.log and mirrors to system notifications.',
       'Confirm the image is inside a scan root (/data/homebrew, /data/etaHEN/games, /mnt/ext0, /mnt/usb0..7, or a scanpath= override). Remember that scanpath= entries replace the defaults entirely.',
       'Check scan depth: scan_depth=1 only scans first-level subfolders; use scan_depth=2 for one extra nested level (recursive_scan=1 is the deprecated spelling of the same thing).',
-      'Check the source layout. Folder games need <GAME_DIR>/sce_sys/param.json. Image games (.ffpkg, .exfat, .ffpfs) need sce_sys/param.json at the image root — no extra top-level folder inside the image.',
+      'Check the source layout. Folder games need <GAME_DIR>/sce_sys/param.json. Image games (.ffpkg, .exfat, .ffpfs) need sce_sys/param.json at the image root (no extra top-level folder inside the image).',
       'For .ffpfsc containers: only nested supported image files are scanned; game files dropped directly into the container are ignored.',
       'If the log shows source not stable yet, the source was still being written. Wait for the copy to finish or raise stability_wait_seconds.',
       'If you see missing/invalid param.json for an image, check over FTP that the mounted content under /mnt/shadowmnt/<image_name>_<hash>/ includes sce_sys/param.json.',
@@ -31,7 +31,7 @@ const SECTIONS: Section[] = [
     steps: [
       'Match the extension to the real content: .ffpkg = UFS2, .exfat = exFAT, .ffpfs = PFS, .ffpfsc = PFS container. The Verify tab checks this for you from the file header.',
       'Re-verify the image integrity on the PC side (UFS2Tool info for .ffpkg, MkPFS inspect for .ffpfsc).',
-      'exFAT images must be built with a 64 KiB cluster size — smaller clusters break the LVD profile and hurt performance.',
+      'exFAT images must be built with a 64 KiB cluster size: smaller clusters break the LVD profile and hurt performance.',
       'Corrupted or truncated transfers are common with FTP: compare file sizes between the PC and the console.',
     ],
   },
@@ -40,9 +40,9 @@ const SECTIONS: Section[] = [
     title: 'Game is mounted but does not start',
     symptoms: 'The icon is there, launching returns to the home screen.',
     steps: [
-      'Look for Register failed ... notifications — the game did not register into the system library.',
+      'Look for Register failed ... notifications: the game did not register into the system library.',
       'Try removing the launcher icon and removing the entry from Itemzflow, then let the scanner re-register it.',
-      'If that does not help, remove the game data from system settings and retry. This deletes the game saves — back them up first.',
+      'If that does not help, remove the game data from system settings and retry. This deletes the game saves: back them up first.',
     ],
   },
   {
@@ -51,7 +51,7 @@ const SECTIONS: Section[] = [
     symptoms: 'The console reports the same title twice.',
     steps: [
       'Keep exactly one source per <TITLE_ID>. Two images (or an image plus a folder) with the same title confuse registration.',
-      'Remember manual.lst entries also count as sources — comment out or remove lines you no longer need (lines starting with # are ignored).',
+      'Remember manual.lst entries also count as sources: comment out or remove lines you no longer need (lines starting with # are ignored).',
     ],
   },
   {
@@ -68,7 +68,7 @@ const SECTIONS: Section[] = [
     title: 'Library problems after rest mode',
     symptoms: 'Games vanish or USB sources drop out after wake-up.',
     steps: [
-      'USB library recovery after rest mode was reworked in 1.7 — make sure you run a current payload build.',
+      'USB library recovery after rest mode was reworked in 1.7: make sure you run a current payload build.',
       'Optional removal of unavailable games waits and cancels if the source returns; games with installed DLC are protected unless auto_remove_games_with_dlc=1 is set.',
     ],
   },
@@ -86,7 +86,7 @@ export function TroubleshootView() {
 
       <Callout tone="warn" title="Read this first">
         Mounting images can cause shutdown problems and data corruption on internal drives. This depends on many
-        factors and is more common on older firmware versions — keep backups of important data and config before
+        factors and is more common on older firmware versions: keep backups of important data and config before
         experimenting.
       </Callout>
 

@@ -136,7 +136,7 @@ export async function stageAppearance(sourceDir: string, overrides: AppearanceOv
     try {
       text = await fs.promises.readFile(paramPath, 'utf8');
     } catch {
-      throw new Error('sce_sys/param.json was not found in the source folder — the title override needs it.');
+      throw new Error('sce_sys/param.json was not found in the source folder: the title override needs it.');
     }
     patchedParam = patchParamTitle(text, title);
     summary.push(`title → ${title}`);

@@ -2,10 +2,11 @@ name: build
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
     tags:
       - 'v*'
   pull_request:
+    branches: [dev]
   workflow_dispatch:
 
 jobs:

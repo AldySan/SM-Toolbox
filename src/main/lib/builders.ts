@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Fetches the exFAT image-builder scripts (mkexfat.sh and
-// New-OsfExfatImage.ps1) straight from the ShadowMountPlus repository —
+// New-OsfExfatImage.ps1) straight from the ShadowMountPlus repository:
 // just the two files, no checkout, no clone. Files come from the
 // raw.githubusercontent.com CDN and are fingerprinted by content, so no
 // GitHub API calls (and their anonymous rate limits) are involved.

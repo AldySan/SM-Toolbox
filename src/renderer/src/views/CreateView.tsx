@@ -188,19 +188,19 @@ export function CreateView(props: {
     Boolean(props.env && !props.env.tools.find((tool) => tool.id === toolId && tool.found));
 
   const blockers: string[] = [];
-  if (format === 'ufs2' && missingTool('ufs2tool')) blockers.push('UFS2Tool is missing — download it from Settings, Tools.');
-  if (format === 'ffpfsc' && missingTool('mkpfs')) blockers.push('MkPFS is missing — download it from Settings, Tools.');
+  if (format === 'ufs2' && missingTool('ufs2tool')) blockers.push('UFS2Tool is missing: download it from Settings, Tools.');
+  if (format === 'ffpfsc' && missingTool('mkpfs')) blockers.push('MkPFS is missing: download it from Settings, Tools.');
   if ((format === 'exfat' || (format === 'ffpfsc' && innerFormat === 'exfat')) && props.env && !props.env.repoOk) {
-    blockers.push('No exFAT builder script available — the bundled copy is missing. Reinstall the toolbox, or fetch the scripts from Settings → Tools.');
+    blockers.push('No exFAT builder script available: the bundled copy is missing. Reinstall the toolbox, or fetch the scripts from Settings → Tools.');
   }
   if (format === 'exfat' && isWindows && missingTool('osfmount')) {
-    blockers.push('OSFMount is missing — install it from osforensics.com (needed by the Windows exFAT builder).');
+    blockers.push('OSFMount is missing: install it from osforensics.com (needed by the Windows exFAT builder).');
   }
   if (folderStat?.exists && (!folderStat.ebootBin || !folderStat.paramJson)) {
     blockers.push('Source folder must contain eboot.bin and sce_sys/param.json at its root.');
   }
   if (sourceDir && outputFile && isInside(outputFile, sourceDir)) {
-    blockers.push('The output image must live outside the source folder — pick a different output location.');
+    blockers.push('The output image must live outside the source folder: pick a different output location.');
   }
 
   const run = async () => {
@@ -288,10 +288,11 @@ export function CreateView(props: {
         )}
 
         <div className="field">
-          <label>PS5 title &amp; icon (optional)</label>
+          <label htmlFor="ps5-title">PS5 title &amp; icon (optional)</label>
           <div className="appearance-block">
             <div className="appearance-title-row">
               <input
+                id="ps5-title"
                 type="text"
                 value={ps5Title}
                 maxLength={128}
@@ -321,7 +322,7 @@ export function CreateView(props: {
           </div>
           <div className="field-hint">
             Written into <span className="mono">sce_sys/param.json</span> (titleName) and{' '}
-            <span className="mono">sce_sys/icon0.png</span> (512×512 PNG) inside the built image — the source folder is
+            <span className="mono">sce_sys/icon0.png</span> (512×512 PNG) inside the built image. The source folder is
             never modified. Non-square icons are center-cropped; the PS5 may need a restart or a reinstall before the
             home screen refreshes a changed icon.
           </div>
@@ -330,12 +331,12 @@ export function CreateView(props: {
 
         {format === 'ufs2' && (
           <div className="field">
-            <label>Inode density</label>
-            <select value={inodeDensity} onChange={(event) => setInodeDensity(event.target.value as InodeDensity)}>
+            <label htmlFor="inode-density">Inode density</label>
+            <select id="inode-density" value={inodeDensity} onChange={(event) => setInodeDensity(event.target.value as InodeDensity)}>
               <option value="auto">Auto (based on file count)</option>
-              <option value="262144">262144 — normal dumps</option>
-              <option value="131072">131072 — tens of thousands of files</option>
-              <option value="65536">65536 — very file-dense images</option>
+              <option value="262144">262144: normal dumps</option>
+              <option value="131072">131072: tens of thousands of files</option>
+              <option value="65536">65536: very file-dense images</option>
             </select>
             <div className="field-hint">Bytes per inode for the fixed UFS2 profile (-b 65536 -f 65536 -m 0 -S 4096).</div>
           </div>
@@ -343,8 +344,8 @@ export function CreateView(props: {
 
         {format === 'exfat' && isWindows && (
           <div className="field">
-            <label>Volume label (optional)</label>
-            <input type="text" value={label} maxLength={11} placeholder="OSFIMG" onChange={(event) => setLabel(event.target.value)} />
+            <label htmlFor="volume-label">Volume label (optional)</label>
+            <input id="volume-label" type="text" value={label} maxLength={11} placeholder="OSFIMG" onChange={(event) => setLabel(event.target.value)} />
           </div>
         )}
 
@@ -404,7 +405,7 @@ export function CreateView(props: {
           </div>
           <div className="field-hint">
             Verification reads the finished image header and prints the report in the build output. Both options only
-            run after every build step succeeded — a failed or cancelled build leaves the source folder untouched.
+            run after every build step succeeded: a failed or cancelled build leaves the source folder untouched.
           </div>
           {deleteSource && (
             <Callout tone="warn" title="Source folder will be deleted">
@@ -435,7 +436,7 @@ export function CreateView(props: {
         {props.queue.items.length > 0 && (
           <div className="field-hint">
             {props.queue.items.some((item) => item.status === 'running')
-              ? 'A build is running — this image starts right after it.'
+              ? 'A build is running: this image starts right after it.'
               : `The queue holds ${props.queue.items.length} image${props.queue.items.length === 1 ? '' : 's'}; adding another keeps building one after another.`}
           </div>
         )}
@@ -462,7 +463,7 @@ export function CreateView(props: {
               <div key={index} className="cmd-step">
                 <div className="cmd-step-desc">
                   {step.description}
-                  {step.privileged && <span className="badge">elevated</span>}
+                  {step.privileged && <span className="badge">Elevated</span>}
                 </div>
                 {advanced && step.editable ? (
                   <input
@@ -485,7 +486,7 @@ export function CreateView(props: {
           </div>
           {advanced && (
             <div className="field-hint">
-              Edited commands run exactly as typed — bash -c on Linux, PowerShell on Windows — so quoting, pipes and
+              Edited commands run exactly as typed (bash -c on Linux, PowerShell on Windows), so quoting, pipes and
               redirects behave like in a terminal. Empty lines fall back to the generated command, and changing a build
               option above resets the edits. The toolbox cannot vouch for images built from custom commands.
             </div>

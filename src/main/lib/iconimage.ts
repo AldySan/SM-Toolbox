@@ -2,7 +2,7 @@
 // Icon conversion for the PS5 appearance override. Electron's nativeImage
 // does the decoding (PNG/JPEG/BMP/ICO); the pure crop helper lives in
 // appearance.ts so it can be unit-tested without Electron. Non-square
-// sources are center-cropped to a square first — real PS5 covers are
+// sources are center-cropped to a square first: real PS5 covers are
 // 512×512 PNGs, and cropping keeps proportions where stretching would
 // distort them.
 
@@ -39,7 +39,7 @@ export function prepareIconFile(inputPath: string): PreparedIcon {
     fs.closeSync(fd);
   }
   const sourceFormat = sniffImageFormat(head);
-  if (!sourceFormat) throw new Error('Unrecognized image format — pick a PNG, JPEG, BMP or ICO file.');
+  if (!sourceFormat) throw new Error('Unrecognized image format: pick a PNG, JPEG, BMP or ICO file.');
 
   const image = nativeImage.createFromPath(inputPath);
   if (image.isEmpty()) throw new Error('The image could not be decoded.');

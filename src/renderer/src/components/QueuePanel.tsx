@@ -75,8 +75,8 @@ export function QueuePanel(props: {
       </ul>
       <p className="field-hint">
         Tools run hidden in the background; each row shows its own progress. Items build one at a time and the next
-        image starts as soon as the current one finishes. Cancelling the current build skips to the next queued item —
-        clear the queue first to stop everything.
+        image starts as soon as the current one finishes. Cancelling the current build skips to the next queued item.
+        Clear the queue first to stop everything.
       </p>
     </section>
   );
