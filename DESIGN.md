@@ -34,6 +34,11 @@ names, real states, no marketing buzzwords, no urgency.
   native, start instantly and work offline; a webfont would add weight without
   adding character. Labels are sentence case; uppercase micro-labels are not
   part of this identity. Copy avoids the em dash character entirely.
+- The app icon is a flat squircle in the brand green carrying a minimal
+  two-peak range and a plus sign: a nod to the ShadowMountPlus name that
+  borrows nothing from its witch-hat artwork. Colors come from the app's own
+  tokens (#4db585, #1d6f4a, #11141a), and small sizes simplify progressively
+  (one peak at 24 px, the mountain alone at 16 px).
 - Layout: sidebar navigation, one focused view at a time, a build queue panel
   and a terminal dock at the bottom. Whitespace separates groups; the grid
   stays calm and predictable.
